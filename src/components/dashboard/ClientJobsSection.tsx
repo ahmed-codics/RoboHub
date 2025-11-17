@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import JobBidsDialog from "./JobBidsDialog";
+import JobDetailsDialog from "@/components/jobs/JobDetailsDialog";
 
 interface Job {
   id: string;
@@ -122,6 +123,7 @@ const ClientJobsSection = ({ userId }: ClientJobsSectionProps) => {
                 </div>
 
                 <div className="flex gap-2">
+                  <JobDetailsDialog jobId={job.id} userRole="client" userId={userId} />
                   <JobBidsDialog jobId={job.id} jobTitle={job.title} />
                   {job.status === "open" && (
                     <Button

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, DollarSign, SlidersHorizontal } from "lucide-react";
 import PlaceBidDialog from "./PlaceBidDialog";
+import JobDetailsDialog from "@/components/jobs/JobDetailsDialog";
 
 interface Job {
   id: string;
@@ -184,12 +185,15 @@ const JobsList = ({ userId, userRole, onBidPlaced }: JobsListProps) => {
                 ))}
               </div>
 
-              {userRole === "freelancer" && (
-                <PlaceBidDialog jobId={job.id} userId={userId} onBidPlaced={() => {
-                  loadJobs();
-                  onBidPlaced?.();
-                }} />
-              )}
+              <div className="flex gap-2">
+                <JobDetailsDialog jobId={job.id} userRole={userRole} userId={userId} />
+                {userRole === "freelancer" && (
+                  <PlaceBidDialog jobId={job.id} userId={userId} onBidPlaced={() => {
+                    loadJobs();
+                    onBidPlaced?.();
+                  }} />
+                )}
+              </div>
             </div>
           ))
         )}
