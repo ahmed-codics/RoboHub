@@ -1,1 +1,10 @@
 project_id = "mjylkefxurazemvbrhgj"
+
+[functions.place-bid]
+verify_jwt = true
+
+[functions.accept-bid]
+verify_jwt = true
+
+[functions.admin-stats]
+verify_jwt = true
