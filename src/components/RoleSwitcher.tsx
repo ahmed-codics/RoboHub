@@ -20,34 +20,27 @@ const RoleSwitcher = ({ userId, currentRole, onRoleChange }: RoleSwitcherProps) 
 
     setLoading(true);
     try {
-      // Check if user already has this role
-      const { data: existingRole } = await supabase
-        .from("user_roles")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("role", newRole)
-        .single();
-
-      // If role doesn't exist, create it
-      if (!existingRole) {
-        const { error: insertError } = await supabase
-          .from("user_roles")
-          .insert({
-            user_id: userId,
-            role: newRole,
-          });
-
-        if (insertError) throw insertError;
-      }
-
-      // Update the current role (delete old, keep new)
+      // First, delete ALL other roles (not the new one)
       const { error: deleteError } = await supabase
         .from("user_roles")
         .delete()
         .eq("user_id", userId)
-        .eq("role", currentRole as "freelancer" | "client");
+        .neq("role", newRole);
 
       if (deleteError) throw deleteError;
+
+      // Then ensure the new role exists (insert if not exists)
+      const { error: insertError } = await supabase
+        .from("user_roles")
+        .upsert({
+          user_id: userId,
+          role: newRole,
+        }, {
+          onConflict: "user_id,role",
+          ignoreDuplicates: true
+        });
+
+      if (insertError) throw insertError;
 
       toast.success(`Switched to ${newRole} mode`);
       onRoleChange();
