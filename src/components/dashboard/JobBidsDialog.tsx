@@ -61,7 +61,45 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
 
   const handleAcceptBid = async (bidId: string) => {
     try {
-      // Update bid status
+      const acceptedBid = bids.find((b) => b.id === bidId);
+      if (!acceptedBid) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: jobData } = await supabase
+        .from("jobs")
+        .select("budget, client_id")
+        .eq("id", jobId)
+        .single();
+
+      if (!jobData) throw new Error("Job not found");
+
+      // Get freelancer_id from the bid
+      const { data: bidData } = await supabase
+        .from("bids")
+        .select("freelancer_id")
+        .eq("id", bidId)
+        .single();
+
+      if (!bidData) throw new Error("Bid not found");
+
+      // Create escrow transaction
+      const { error: escrowError } = await supabase
+        .from("escrow_transactions")
+        .insert([
+          {
+            job_id: jobId,
+            client_id: jobData.client_id,
+            freelancer_id: bidData.freelancer_id,
+            amount: jobData.budget,
+            status: "held",
+          },
+        ]);
+
+      if (escrowError) throw escrowError;
+
+      // Update bid status to accepted
       const { error: bidError } = await supabase
         .from("bids")
         .update({ status: "accepted" })
@@ -69,7 +107,7 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
 
       if (bidError) throw bidError;
 
-      // Update job status
+      // Update job status to in_progress
       const { error: jobError } = await supabase
         .from("jobs")
         .update({ status: "in_progress" })
@@ -77,7 +115,7 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
 
       if (jobError) throw jobError;
 
-      // Reject other bids
+      // Reject all other bids for this job
       const { error: rejectError } = await supabase
         .from("bids")
         .update({ status: "rejected" })
@@ -86,7 +124,17 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
 
       if (rejectError) throw rejectError;
 
-      toast.success("Bid accepted successfully!");
+      // Create notification for freelancer
+      await supabase.from("notifications").insert([
+        {
+          user_id: bidData.freelancer_id,
+          type: "bid_accepted",
+          title: "Bid Accepted!",
+          message: `Your bid for "${jobTitle}" has been accepted. Funds are now in escrow.`,
+        },
+      ]);
+
+      toast.success("Bid accepted! Funds placed in escrow.");
       loadBids();
     } catch (error: any) {
       toast.error(error.message || "Failed to accept bid");
