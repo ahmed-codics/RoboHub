@@ -17,6 +17,17 @@ const Dashboard = () => {
 
   useEffect(() => {
     checkUser();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        navigate("/auth");
+      } else if (event === 'SIGNED_IN' && session) {
+        checkUser();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const checkUser = async () => {
