@@ -46,13 +46,14 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
       .from("bids")
       .select(`
         *,
-        profiles!bids_freelancer_id_fkey(name)
+        profiles:freelancer_id(name)
       `)
       .eq("job_id", jobId)
       .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error loading bids:", error);
+      toast.error("Failed to load bids");
     } else {
       setBids(data as any || []);
     }
