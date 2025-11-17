@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { FileText, User } from "lucide-react";
+import MessageDialog from "@/components/messaging/MessageDialog";
+import PlatformFeeDialog from "@/components/escrow/PlatformFeeDialog";
 
 interface Bid {
   id: string;
@@ -19,7 +21,9 @@ interface Bid {
   proposal_text: string;
   status: string;
   created_at: string;
+  freelancer_id: string;
   profiles: {
+    id?: string;
     name: string;
   };
 }
@@ -33,6 +37,8 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
   const [open, setOpen] = useState(false);
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedBid, setSelectedBid] = useState<Bid | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -68,7 +74,7 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
       // Merge profile data with bids
       const bidsWithProfiles = bidsData.map(bid => ({
         ...bid,
-        profiles: profilesData?.find(p => p.id === bid.freelancer_id) || { name: "Unknown" }
+        profiles: profilesData?.find(p => p.id === bid.freelancer_id) || { id: bid.freelancer_id, name: "Unknown" }
       }));
       
       setBids(bidsWithProfiles as any);
@@ -79,86 +85,9 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
     setLoading(false);
   };
 
-  const handleAcceptBid = async (bidId: string) => {
-    try {
-      const acceptedBid = bids.find((b) => b.id === bidId);
-      if (!acceptedBid) return;
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: jobData } = await supabase
-        .from("jobs")
-        .select("budget, client_id")
-        .eq("id", jobId)
-        .single();
-
-      if (!jobData) throw new Error("Job not found");
-
-      // Get freelancer_id from the bid
-      const { data: bidData } = await supabase
-        .from("bids")
-        .select("freelancer_id")
-        .eq("id", bidId)
-        .single();
-
-      if (!bidData) throw new Error("Bid not found");
-
-      // Create escrow transaction
-      const { error: escrowError } = await supabase
-        .from("escrow_transactions")
-        .insert([
-          {
-            job_id: jobId,
-            client_id: jobData.client_id,
-            freelancer_id: bidData.freelancer_id,
-            amount: jobData.budget,
-            status: "held",
-          },
-        ]);
-
-      if (escrowError) throw escrowError;
-
-      // Update bid status to accepted
-      const { error: bidError } = await supabase
-        .from("bids")
-        .update({ status: "accepted" })
-        .eq("id", bidId);
-
-      if (bidError) throw bidError;
-
-      // Update job status to in_progress
-      const { error: jobError } = await supabase
-        .from("jobs")
-        .update({ status: "in_progress" })
-        .eq("id", jobId);
-
-      if (jobError) throw jobError;
-
-      // Reject all other bids for this job
-      const { error: rejectError } = await supabase
-        .from("bids")
-        .update({ status: "rejected" })
-        .eq("job_id", jobId)
-        .neq("id", bidId);
-
-      if (rejectError) throw rejectError;
-
-      // Create notification for freelancer
-      await supabase.from("notifications").insert([
-        {
-          user_id: bidData.freelancer_id,
-          type: "bid_accepted",
-          title: "Bid Accepted!",
-          message: `Your bid for "${jobTitle}" has been accepted. Funds are now in escrow.`,
-        },
-      ]);
-
-      toast.success("Bid accepted! Funds placed in escrow.");
-      loadBids();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to accept bid");
-    }
+  const handleAcceptBid = (bid: Bid) => {
+    setSelectedBid(bid);
+    setPaymentDialogOpen(true);
   };
 
   const handleRejectBid = async (bidId: string) => {
@@ -229,9 +158,14 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
 
                 {bid.status === "pending" && (
                   <div className="flex gap-2">
+                    <MessageDialog
+                      jobId={jobId}
+                      freelancerId={bid.profiles.id || ""}
+                      freelancerName={bid.profiles.name}
+                    />
                     <Button
                       size="sm"
-                      onClick={() => handleAcceptBid(bid.id)}
+                      onClick={() => handleAcceptBid(bid)}
                       className="flex-1"
                     >
                       Accept Bid
@@ -246,9 +180,28 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
                     </Button>
                   </div>
                 )}
+                {bid.status === "accepted" && (
+                  <MessageDialog
+                    jobId={jobId}
+                    freelancerId={bid.profiles.id || ""}
+                    freelancerName={bid.profiles.name}
+                  />
+                )}
               </div>
             ))}
           </div>
+        )}
+
+        {selectedBid && (
+          <PlatformFeeDialog
+            open={paymentDialogOpen}
+            onOpenChange={setPaymentDialogOpen}
+            bidId={selectedBid.id}
+            bidAmount={selectedBid.bid_amount}
+            jobId={jobId}
+            freelancerId={selectedBid.profiles.id || ""}
+            onSuccess={loadBids}
+          />
         )}
       </DialogContent>
     </Dialog>

@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
       .neq('id', bid_id)
       .eq('status', 'pending');
 
-    // Create escrow transaction
+    // Create escrow transaction with platform fee marked as paid
     const { data: escrow, error: escrowError } = await supabase
       .from('escrow_transactions')
       .insert({
@@ -106,7 +106,8 @@ Deno.serve(async (req) => {
         client_id: user.id,
         freelancer_id: bid.freelancer_id,
         amount: bid.bid_amount,
-        status: 'held'
+        status: 'held',
+        platform_fee_paid: true
       })
       .select()
       .single();
