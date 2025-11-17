@@ -9,6 +9,7 @@ const FloatingChatButton = () => {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [userId, setUserId] = useState<string>("");
+  const [hasMessages, setHasMessages] = useState(false);
 
   useEffect(() => {
     getCurrentUser();
@@ -17,7 +18,9 @@ const FloatingChatButton = () => {
   useEffect(() => {
     if (!userId) return;
 
+    console.log('FloatingChatButton userId:', userId);
     loadUnreadCount();
+    checkHasMessages();
 
     // Subscribe to new messages
     const channel = supabase
@@ -31,7 +34,9 @@ const FloatingChatButton = () => {
           filter: `receiver_id=eq.${userId}`
         },
         () => {
+          console.log('New message received');
           loadUnreadCount();
+          checkHasMessages();
         }
       )
       .on(
@@ -43,6 +48,7 @@ const FloatingChatButton = () => {
           filter: `receiver_id=eq.${userId}`
         },
         () => {
+          console.log('Message updated');
           loadUnreadCount();
         }
       )
@@ -55,7 +61,18 @@ const FloatingChatButton = () => {
 
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
+    console.log('Current user:', user?.id);
     if (user) setUserId(user.id);
+  };
+
+  const checkHasMessages = async () => {
+    const { count } = await supabase
+      .from("messages")
+      .select("*", { count: 'exact', head: true })
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+
+    console.log('Total messages for user:', count);
+    setHasMessages((count || 0) > 0);
   };
 
   const loadUnreadCount = async () => {
@@ -65,15 +82,24 @@ const FloatingChatButton = () => {
       .eq("receiver_id", userId)
       .eq("read", false);
 
+    console.log('Unread count:', count);
     setUnreadCount(count || 0);
   };
+
+  // Don't render button if user not logged in
+  if (!userId) {
+    return null;
+  }
 
   return (
     <>
       <div className="fixed bottom-6 right-6 z-50">
         <Button
           size="lg"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            console.log('Chat button clicked, opening dialog');
+            setOpen(true);
+          }}
           className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all relative"
         >
           <MessageCircle className="h-6 w-6" />
@@ -90,9 +116,20 @@ const FloatingChatButton = () => {
 
       <ConversationsDialog 
         open={open} 
-        onOpenChange={setOpen}
+        onOpenChange={(newOpen) => {
+          console.log('Dialog open state changed:', newOpen);
+          setOpen(newOpen);
+          if (!newOpen) {
+            // Refresh counts when dialog closes
+            loadUnreadCount();
+            checkHasMessages();
+          }
+        }}
         userId={userId}
-        onConversationOpen={loadUnreadCount}
+        onConversationOpen={() => {
+          console.log('Conversation opened, refreshing counts');
+          loadUnreadCount();
+        }}
       />
     </>
   );
