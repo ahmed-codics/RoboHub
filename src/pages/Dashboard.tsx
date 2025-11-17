@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Cpu } from "lucide-react";
+import { Cpu, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import FreelancerDashboard from "@/components/dashboard/FreelancerDashboard";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -71,9 +72,19 @@ const Dashboard = () => {
       {/* Header */}
       <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-50 bg-background/80">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Cpu className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold text-foreground">RoboWork</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Cpu className="h-8 w-8 text-primary" />
+              <span className="text-xl font-bold text-foreground">RoboWork</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate("/jobs")}
+              className="flex items-center gap-2"
+            >
+              <Briefcase className="h-4 w-4" />
+              Browse Jobs
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             {userId && <NotificationBell userId={userId} />}
@@ -86,9 +97,22 @@ const Dashboard = () => {
 
       {/* Dashboard Content */}
       <main className="container mx-auto px-4 py-8">
-        {userRole === "freelancer" && userId && <FreelancerDashboard userId={userId} />}
-        {userRole === "client" && userId && <ClientDashboard userId={userId} />}
-        {userRole === "admin" && <div>Admin Dashboard (Coming Soon)</div>}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-3">
+            {userRole === "freelancer" && userId && <FreelancerDashboard userId={userId} />}
+            {userRole === "client" && userId && <ClientDashboard userId={userId} />}
+            {userRole === "admin" && <div>Admin Dashboard (Coming Soon)</div>}
+          </div>
+          <div className="lg:col-span-1">
+            {userId && userRole && (
+              <RoleSwitcher 
+                userId={userId} 
+                currentRole={userRole} 
+                onRoleChange={checkUser} 
+              />
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
