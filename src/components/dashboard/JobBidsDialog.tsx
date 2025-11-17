@@ -42,21 +42,40 @@ const JobBidsDialog = ({ jobId, jobTitle }: JobBidsDialogProps) => {
 
   const loadBids = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch bids
+    const { data: bidsData, error: bidsError } = await supabase
       .from("bids")
-      .select(`
-        *,
-        profiles:freelancer_id(name)
-      `)
+      .select("*")
       .eq("job_id", jobId)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error loading bids:", error);
+    if (bidsError) {
+      console.error("Error loading bids:", bidsError);
       toast.error("Failed to load bids");
-    } else {
-      setBids(data as any || []);
+      setLoading(false);
+      return;
     }
+
+    // Fetch profiles for all freelancers
+    if (bidsData && bidsData.length > 0) {
+      const freelancerIds = bidsData.map(bid => bid.freelancer_id);
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, name")
+        .in("id", freelancerIds);
+
+      // Merge profile data with bids
+      const bidsWithProfiles = bidsData.map(bid => ({
+        ...bid,
+        profiles: profilesData?.find(p => p.id === bid.freelancer_id) || { name: "Unknown" }
+      }));
+      
+      setBids(bidsWithProfiles as any);
+    } else {
+      setBids([]);
+    }
+    
     setLoading(false);
   };
 
