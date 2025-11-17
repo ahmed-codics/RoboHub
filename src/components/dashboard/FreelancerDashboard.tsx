@@ -8,6 +8,7 @@ import JobsList from "./JobsList";
 import ProfileSection from "./ProfileSection";
 import BidsSection from "./BidsSection";
 import PremiumSection from "./PremiumSection";
+import BidUsageCounter from "./BidUsageCounter";
 
 interface FreelancerDashboardProps {
   userId: string;
@@ -19,6 +20,8 @@ const FreelancerDashboard = ({ userId }: FreelancerDashboardProps) => {
     totalBids: 0,
     acceptedBids: 0,
     availableBids: 10,
+    bidsThisMonth: 0,
+    isPremium: false,
   });
 
   useEffect(() => {
@@ -75,6 +78,8 @@ const FreelancerDashboard = ({ userId }: FreelancerDashboardProps) => {
       totalBids,
       acceptedBids,
       availableBids,
+      bidsThisMonth: totalBids,
+      isPremium,
     });
   };
 
@@ -150,6 +155,11 @@ const FreelancerDashboard = ({ userId }: FreelancerDashboardProps) => {
         </div>
 
         <div className="space-y-6">
+          <BidUsageCounter 
+            bidsThisMonth={stats.bidsThisMonth} 
+            maxBids={10} 
+            isPremium={stats.isPremium} 
+          />
           <ProfileSection userId={userId} profile={profile} onUpdate={loadProfile} />
           <PremiumSection userId={userId} />
         </div>

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import { Crown, Check } from "lucide-react";
 
 interface PremiumSectionProps {
@@ -11,8 +11,8 @@ interface PremiumSectionProps {
 }
 
 const PremiumSection = ({ userId }: PremiumSectionProps) => {
+  const navigate = useNavigate();
   const [premiumPlan, setPremiumPlan] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadPremiumPlan();
@@ -31,44 +31,6 @@ const PremiumSection = ({ userId }: PremiumSectionProps) => {
     }
 
     setPremiumPlan(data);
-  };
-
-  const handleUpgrade = async () => {
-    setLoading(true);
-    try {
-      const activeUntil = new Date();
-      activeUntil.setMonth(activeUntil.getMonth() + 1);
-
-      const { error: planError } = await supabase
-        .from("premium_plans")
-        .update({
-          plan_type: "premium",
-          price: 10.00,
-          active_until: activeUntil.toISOString(),
-        })
-        .eq("user_id", userId);
-
-      if (planError) throw planError;
-
-      // Record payment
-      const { error: paymentError } = await supabase.from("payments").insert([
-        {
-          user_id: userId,
-          amount: 10.00,
-          type: "premium_subscription",
-          status: "completed",
-        },
-      ]);
-
-      if (paymentError) throw paymentError;
-
-      toast.success("Upgraded to Premium successfully!");
-      loadPremiumPlan();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to upgrade");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const isPremium = premiumPlan?.plan_type === "premium";
@@ -117,8 +79,8 @@ const PremiumSection = ({ userId }: PremiumSectionProps) => {
                 <span className="text-muted-foreground">/month</span>
               </div>
             </div>
-            <Button onClick={handleUpgrade} disabled={loading} className="w-full">
-              {loading ? "Processing..." : "Upgrade to Premium"}
+            <Button onClick={() => navigate("/premium/checkout")} className="w-full">
+              Upgrade to Premium
             </Button>
           </>
         )}
