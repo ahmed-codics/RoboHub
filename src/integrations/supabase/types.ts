@@ -63,6 +63,9 @@ export type Database = {
           freelancer_id: string
           id: string
           job_id: string
+          platform_fee_paid: boolean
+          release_requested: boolean
+          release_requested_at: string | null
           released_at: string | null
           status: string
         }
@@ -73,6 +76,9 @@ export type Database = {
           freelancer_id: string
           id?: string
           job_id: string
+          platform_fee_paid?: boolean
+          release_requested?: boolean
+          release_requested_at?: string | null
           released_at?: string | null
           status?: string
         }
@@ -83,6 +89,9 @@ export type Database = {
           freelancer_id?: string
           id?: string
           job_id?: string
+          platform_fee_paid?: boolean
+          release_requested?: boolean
+          release_requested_at?: string | null
           released_at?: string | null
           status?: string
         }
@@ -152,6 +161,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          message: string
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          message: string
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          message?: string
+          receiver_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {

@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { DollarSign } from "lucide-react";
+import { DollarSign, CheckCircle } from "lucide-react";
 
 interface EscrowTransaction {
   id: string;
@@ -12,6 +13,9 @@ interface EscrowTransaction {
   created_at: string;
   released_at?: string;
   freelancer_id: string;
+  platform_fee_paid: boolean;
+  release_requested: boolean;
+  release_requested_at: string | null;
   jobs: {
     title: string;
   };
@@ -20,11 +24,13 @@ interface EscrowTransaction {
 interface EscrowManagerProps {
   jobId: string;
   isClient: boolean;
+  isFreelancer?: boolean;
 }
 
-const EscrowManager = ({ jobId, isClient }: EscrowManagerProps) => {
+const EscrowManager = ({ jobId, isClient, isFreelancer = false }: EscrowManagerProps) => {
   const [escrow, setEscrow] = useState<EscrowTransaction | null>(null);
   const [loading, setLoading] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
     loadEscrow();
@@ -115,6 +121,47 @@ const EscrowManager = ({ jobId, isClient }: EscrowManagerProps) => {
     }
   };
 
+  const handleRequestRelease = async () => {
+    if (!escrow) return;
+
+    setRequesting(true);
+    try {
+      const { error } = await supabase
+        .from("escrow_transactions")
+        .update({
+          release_requested: true,
+          release_requested_at: new Date().toISOString(),
+        })
+        .eq("id", escrow.id);
+
+      if (error) throw error;
+
+      // Notify client
+      const { data: jobData } = await supabase
+        .from("jobs")
+        .select("client_id, title")
+        .eq("id", jobId)
+        .single();
+
+      if (jobData) {
+        await supabase.from("notifications").insert({
+          user_id: jobData.client_id,
+          type: "release_requested",
+          title: "Release Request",
+          message: `Freelancer has requested fund release for "${jobData.title}"`,
+          metadata: { job_id: jobId, escrow_id: escrow.id },
+        });
+      }
+
+      toast.success("Release request sent to client");
+      loadEscrow();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to request release");
+    } finally {
+      setRequesting(false);
+    }
+  };
+
   if (!escrow) {
     return null;
   }
@@ -136,6 +183,39 @@ const EscrowManager = ({ jobId, isClient }: EscrowManagerProps) => {
           <span className="text-sm text-muted-foreground">Status</span>
           <span className="font-semibold capitalize">{escrow.status}</span>
         </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground">Platform Fee</span>
+          {escrow.platform_fee_paid ? (
+            <Badge variant="default">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Paid
+            </Badge>
+          ) : (
+            <Badge variant="secondary">Pending</Badge>
+          )}
+        </div>
+
+        {escrow.release_requested && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+              Release Requested
+            </p>
+            <p className="text-xs text-yellow-600 dark:text-yellow-300 mt-1">
+              {new Date(escrow.release_requested_at!).toLocaleString()}
+            </p>
+          </div>
+        )}
+
+        {isFreelancer && escrow.status === "held" && !escrow.release_requested && (
+          <Button 
+            onClick={handleRequestRelease} 
+            disabled={requesting}
+            className="w-full"
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            {requesting ? "Requesting..." : "Request Release"}
+          </Button>
+        )}
         
         {isClient && escrow.status === "held" && (
           <div className="flex gap-2 pt-2">
