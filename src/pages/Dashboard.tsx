@@ -30,12 +30,12 @@ const Dashboard = () => {
 
       setUserId(session.user.id);
 
-      // Get user role
+      // Get user role (handle multiple roles by taking the first one)
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
-        .single();
+        .limit(1);
 
       if (roleError) {
         console.error("Error fetching user role:", roleError);
@@ -43,7 +43,12 @@ const Dashboard = () => {
         return;
       }
 
-      setUserRole(roleData.role);
+      if (!roleData || roleData.length === 0) {
+        toast.error("No role found. Please contact support.");
+        return;
+      }
+
+      setUserRole(roleData[0].role);
     } catch (error) {
       console.error("Error checking user:", error);
     } finally {
