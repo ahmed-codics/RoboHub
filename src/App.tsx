@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Jobs from "./pages/Jobs";
 import Admin from "./pages/Admin";
 import PremiumCheckout from "./pages/PremiumCheckout";
 import NotFound from "./pages/NotFound";
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/jobs" element={<Jobs />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/premium/checkout" element={<PremiumCheckout />} />
           <Route path="*" element={<NotFound />} />

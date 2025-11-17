@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, Star, TrendingUp, Award } from "lucide-react";
-import JobsList from "./JobsList";
 import ProfileSection from "./ProfileSection";
 import BidsSection from "./BidsSection";
 import PremiumSection from "./PremiumSection";
@@ -148,9 +147,8 @@ const FreelancerDashboard = ({ userId }: FreelancerDashboardProps) => {
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <JobsList userId={userId} userRole="freelancer" onBidPlaced={loadStats} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
           <BidsSection userId={userId} />
         </div>
 
