@@ -45,70 +45,109 @@ const ConversationsDialog = ({ open, onOpenChange, userId, onConversationOpen }:
 
   const loadConversations = async () => {
     setLoading(true);
+    console.log('Loading conversations for user:', userId);
     
-    // Get all messages where user is sender or receiver
-    const { data: messagesData, error } = await supabase
-      .from("messages")
-      .select("job_id, sender_id, receiver_id, message, created_at, read")
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .order("created_at", { ascending: false });
+    try {
+      // Get all messages where user is sender or receiver with job and profile data
+      const { data: messagesData, error } = await supabase
+        .from("messages")
+        .select(`
+          id,
+          job_id,
+          sender_id,
+          receiver_id,
+          message,
+          created_at,
+          read,
+          jobs!inner(title)
+        `)
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error loading conversations:", error);
-      setLoading(false);
-      return;
-    }
-
-    // Group messages by job_id
-    const jobMessages = new Map<string, any[]>();
-    messagesData?.forEach(msg => {
-      if (!jobMessages.has(msg.job_id)) {
-        jobMessages.set(msg.job_id, []);
+      if (error) {
+        console.error("Error loading conversations:", error);
+        setLoading(false);
+        return;
       }
-      jobMessages.get(msg.job_id)!.push(msg);
-    });
 
-    // Build conversations
-    const conversationsMap = new Map<string, Conversation>();
-    
-    for (const [jobId, messages] of jobMessages) {
-      const lastMessage = messages[0];
-      const otherUserId = lastMessage.sender_id === userId 
-        ? lastMessage.receiver_id 
-        : lastMessage.sender_id;
+      console.log('Messages fetched:', messagesData?.length);
 
-      // Count unread messages from this user
-      const unreadCount = messages.filter(
-        m => m.receiver_id === userId && !m.read
-      ).length;
+      if (!messagesData || messagesData.length === 0) {
+        console.log('No messages found');
+        setConversations([]);
+        setLoading(false);
+        return;
+      }
 
-      // Get job details
-      const { data: jobData } = await supabase
-        .from("jobs")
-        .select("title")
-        .eq("id", jobId)
-        .single();
-
-      // Get other user's profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("name")
-        .eq("id", otherUserId)
-        .single();
-
-      conversationsMap.set(jobId, {
-        jobId,
-        jobTitle: jobData?.title || "Unknown Job",
-        otherUserId,
-        otherUserName: profileData?.name || "Unknown User",
-        lastMessage: lastMessage.message,
-        lastMessageTime: lastMessage.created_at,
-        unreadCount,
+      // Group messages by job_id and other user
+      const conversationsMap = new Map<string, {
+        messages: any[];
+        otherUserId: string;
+      }>();
+      
+      messagesData.forEach(msg => {
+        const otherUserId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+        const key = `${msg.job_id}-${otherUserId}`;
+        
+        if (!conversationsMap.has(key)) {
+          conversationsMap.set(key, {
+            messages: [],
+            otherUserId
+          });
+        }
+        conversationsMap.get(key)!.messages.push(msg);
       });
-    }
 
-    setConversations(Array.from(conversationsMap.values()));
-    setLoading(false);
+      console.log('Conversations grouped:', conversationsMap.size);
+
+      // Get all unique user IDs
+      const userIds = Array.from(new Set(
+        Array.from(conversationsMap.values()).map(c => c.otherUserId)
+      ));
+
+      // Fetch all profiles at once
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, name")
+        .in("id", userIds);
+
+      const profilesMap = new Map(
+        profilesData?.map(p => [p.id, p.name]) || []
+      );
+
+      // Build conversations array
+      const conversationsArray: Conversation[] = [];
+      
+      for (const [key, { messages, otherUserId }] of conversationsMap) {
+        const lastMessage = messages[0];
+        const unreadCount = messages.filter(
+          m => m.receiver_id === userId && !m.read
+        ).length;
+
+        conversationsArray.push({
+          jobId: lastMessage.job_id,
+          jobTitle: lastMessage.jobs?.title || "Unknown Job",
+          otherUserId,
+          otherUserName: profilesMap.get(otherUserId) || "Unknown User",
+          lastMessage: lastMessage.message,
+          lastMessageTime: lastMessage.created_at,
+          unreadCount,
+        });
+      }
+
+      console.log('Conversations built:', conversationsArray.length);
+      
+      // Sort by last message time
+      conversationsArray.sort((a, b) => 
+        new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+      );
+
+      setConversations(conversationsArray);
+    } catch (error) {
+      console.error('Error in loadConversations:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleConversationClick = async (conversation: Conversation) => {
