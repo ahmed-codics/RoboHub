@@ -6,6 +6,7 @@ import { Cpu } from "lucide-react";
 import { toast } from "sonner";
 import FreelancerDashboard from "@/components/dashboard/FreelancerDashboard";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -74,9 +75,12 @@ const Dashboard = () => {
             <Cpu className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold text-foreground">RoboWork</span>
           </div>
-          <Button onClick={handleSignOut} variant="outline">
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {userId && <NotificationBell userId={userId} />}
+            <Button onClick={handleSignOut} variant="outline">
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
