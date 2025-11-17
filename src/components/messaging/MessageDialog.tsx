@@ -26,20 +26,33 @@ interface MessageDialogProps {
   jobId: string;
   freelancerId: string;
   freelancerName: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-const MessageDialog = ({ jobId, freelancerId, freelancerName }: MessageDialogProps) => {
-  const [open, setOpen] = useState(false);
+const MessageDialog = ({ 
+  jobId, 
+  freelancerId, 
+  freelancerName,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange
+}: MessageDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Use controlled or internal state
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
+
   useEffect(() => {
     if (open) {
       loadMessages();
       getCurrentUser();
+      markMessagesAsRead();
     }
   }, [open, jobId]);
 
@@ -85,6 +98,18 @@ const MessageDialog = ({ jobId, freelancerId, freelancerName }: MessageDialogPro
   const getCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) setCurrentUserId(user.id);
+  };
+
+  const markMessagesAsRead = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from("messages")
+      .update({ read: true })
+      .eq("job_id", jobId)
+      .eq("receiver_id", user.id)
+      .eq("read", false);
   };
 
   const loadMessages = async () => {
@@ -140,12 +165,14 @@ const MessageDialog = ({ jobId, freelancerId, freelancerName }: MessageDialogPro
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <MessageCircle className="h-4 w-4 mr-2" />
-          Message
-        </Button>
-      </DialogTrigger>
+      {!controlledOpen && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline">
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Message
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl h-[600px] flex flex-col">
         <DialogHeader>
           <DialogTitle>Chat with {freelancerName}</DialogTitle>

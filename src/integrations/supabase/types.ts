@@ -168,6 +168,7 @@ export type Database = {
           id: string
           job_id: string
           message: string
+          read: boolean
           receiver_id: string
           sender_id: string
         }
@@ -176,6 +177,7 @@ export type Database = {
           id?: string
           job_id: string
           message: string
+          read?: boolean
           receiver_id: string
           sender_id: string
         }
@@ -184,6 +186,7 @@ export type Database = {
           id?: string
           job_id?: string
           message?: string
+          read?: boolean
           receiver_id?: string
           sender_id?: string
         }

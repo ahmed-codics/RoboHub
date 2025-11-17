@@ -10,6 +10,7 @@ import Jobs from "./pages/Jobs";
 import Admin from "./pages/Admin";
 import PremiumCheckout from "./pages/PremiumCheckout";
 import NotFound from "./pages/NotFound";
+import FloatingChatButton from "./components/chat/FloatingChatButton";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/premium/checkout" element={<PremiumCheckout />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <FloatingChatButton />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
