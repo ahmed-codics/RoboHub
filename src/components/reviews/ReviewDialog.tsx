@@ -12,6 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Star } from "lucide-react";
+import { z } from "zod";
+
+const reviewSchema = z.object({
+  rating: z.number().int().min(1, "Please select a rating").max(5, "Rating must be between 1 and 5"),
+  comment: z.string().trim().max(1000, "Comment must be less than 1000 characters").optional()
+});
 
 interface ReviewDialogProps {
   jobId: string;
@@ -34,15 +40,15 @@ const ReviewDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (rating === 0) {
-      toast.error("Please select a rating");
-      return;
-    }
-
     setLoading(true);
 
     try {
+      // Validate input
+      const validatedData = reviewSchema.parse({
+        rating,
+        comment: comment || undefined,
+      });
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
@@ -51,8 +57,8 @@ const ReviewDialog = ({
           job_id: jobId,
           reviewer_id: user.id,
           reviewee_id: revieweeId,
-          rating,
-          comment,
+          rating: validatedData.rating,
+          comment: validatedData.comment || null,
         },
       ]);
 
@@ -64,7 +70,11 @@ const ReviewDialog = ({
       setComment("");
       onReviewSubmitted?.();
     } catch (error: any) {
-      toast.error(error.message || "Failed to submit review");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        toast.error(error.message || "Failed to submit review");
+      }
     } finally {
       setLoading(false);
     }

@@ -15,6 +15,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
+import { z } from "zod";
+
+const jobSchema = z.object({
+  title: z.string().trim().min(10, "Title must be at least 10 characters").max(200, "Title must be less than 200 characters"),
+  description: z.string().trim().min(50, "Description must be at least 50 characters").max(5000, "Description must be less than 5000 characters"),
+  budget: z.number().positive("Budget must be positive").max(10000000, "Budget must be less than $10,000,000"),
+  required_skills: z.array(z.string().trim().min(1).max(50)).max(20, "Maximum 20 skills allowed")
+});
 
 interface CreateJobDialogProps {
   userId: string;
@@ -46,13 +54,21 @@ const CreateJobDialog = ({ userId, onJobCreated }: CreateJobDialogProps) => {
     setLoading(true);
 
     try {
+      // Validate input
+      const validatedData = jobSchema.parse({
+        title,
+        description,
+        budget: parseFloat(budget),
+        required_skills: skills,
+      });
+
       const { error } = await supabase.from("jobs").insert([
         {
           client_id: userId,
-          title,
-          description,
-          budget: parseFloat(budget),
-          required_skills: skills,
+          title: validatedData.title,
+          description: validatedData.description,
+          budget: validatedData.budget,
+          required_skills: validatedData.required_skills,
           status: "open",
         },
       ]);
@@ -67,7 +83,11 @@ const CreateJobDialog = ({ userId, onJobCreated }: CreateJobDialogProps) => {
       setSkills([]);
       onJobCreated();
     } catch (error: any) {
-      toast.error(error.message || "Failed to create job");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        toast.error(error.message || "Failed to create job");
+      }
     } finally {
       setLoading(false);
     }

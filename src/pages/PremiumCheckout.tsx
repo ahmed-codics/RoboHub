@@ -9,6 +9,14 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Check, CreditCard, Lock, Zap, ArrowLeft } from "lucide-react";
+import { z } from "zod";
+
+const paymentSchema = z.object({
+  cardName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name too long"),
+  cardNumber: z.string().trim().regex(/^\d{16}$/, "Card number must be 16 digits"),
+  cardExpiry: z.string().trim().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry must be in MM/YY format"),
+  cardCvc: z.string().trim().regex(/^\d{3,4}$/, "CVC must be 3 or 4 digits")
+});
 
 const PremiumCheckout = () => {
   const navigate = useNavigate();
@@ -32,6 +40,14 @@ const PremiumCheckout = () => {
     setLoading(true);
 
     try {
+      // Validate input
+      const validatedData = paymentSchema.parse({
+        cardName,
+        cardNumber: cardNumber.replace(/\s/g, ''),
+        cardExpiry,
+        cardCvc,
+      });
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("Please login to continue");
@@ -77,11 +93,15 @@ const PremiumCheckout = () => {
       });
 
       navigate("/dashboard");
-    } catch (error) {
-      console.error("Payment error:", error);
-      toast.error("Payment failed", {
-        description: "Please try again or contact support"
-      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        console.error("Payment error:", error);
+        toast.error("Payment failed", {
+          description: "Please try again or contact support"
+        });
+      }
     } finally {
       setLoading(false);
     }
