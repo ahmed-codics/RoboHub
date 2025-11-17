@@ -25,6 +25,16 @@ const Auth = () => {
         navigate("/dashboard");
       }
     });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+      if (event === 'SIGNED_IN' && session) {
+        navigate("/dashboard");
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -65,7 +75,7 @@ const Auth = () => {
         }
 
         toast.success("Account created successfully!");
-        navigate("/dashboard");
+        // Navigation handled by onAuthStateChange listener
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to sign up");
@@ -87,7 +97,7 @@ const Auth = () => {
       if (error) throw error;
 
       toast.success("Signed in successfully!");
-      navigate("/dashboard");
+      // Navigation handled by onAuthStateChange listener
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
     } finally {
