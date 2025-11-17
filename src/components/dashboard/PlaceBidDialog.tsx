@@ -14,6 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
+import { startOfMonth, endOfMonth } from "date-fns";
+import { z } from "zod";
+
+const bidSchema = z.object({
+  bid_amount: z.number().positive("Bid amount must be positive").max(10000000, "Bid amount must be less than $10,000,000"),
+  proposal_text: z.string().trim().min(50, "Proposal must be at least 50 characters").max(2000, "Proposal must be less than 2000 characters")
+});
 
 interface PlaceBidDialogProps {
   jobId: string;
@@ -32,44 +39,52 @@ const PlaceBidDialog = ({ jobId, userId, onBidPlaced }: PlaceBidDialogProps) => 
     setLoading(true);
 
     try {
-      // Check bid limit
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      // Validate input
+      const validatedData = bidSchema.parse({
+        bid_amount: parseFloat(bidAmount),
+        proposal_text: proposal,
+      });
 
-      const { data: bidsData, error: bidsError } = await supabase
-        .from("bids")
-        .select("id")
-        .eq("freelancer_id", userId)
-        .gte("created_at", startOfMonth.toISOString());
-
-      if (bidsError) throw bidsError;
-
-      // Check premium plan
-      const { data: planData } = await supabase
+      // Check bid limit for free users
+      const { data: premiumData } = await supabase
         .from("premium_plans")
-        .select("*")
+        .select("plan_type, extra_bids")
         .eq("user_id", userId)
         .single();
 
-      const isPremium = planData?.plan_type === "premium";
-      const bidCount = bidsData?.length || 0;
+      const isPremium = premiumData?.plan_type === "premium";
+      const extraBids = premiumData?.extra_bids || 0;
 
-      if (!isPremium && bidCount >= 10) {
-        toast.error("You've reached your monthly bid limit. Upgrade to premium for unlimited bids!");
-        setLoading(false);
-        return;
+      if (!isPremium) {
+        const now = new Date();
+        const monthStart = startOfMonth(now);
+        const monthEnd = endOfMonth(now);
+
+        const { data: bidsThisMonth } = await supabase
+          .from("bids")
+          .select("id")
+          .eq("freelancer_id", userId)
+          .gte("created_at", monthStart.toISOString())
+          .lte("created_at", monthEnd.toISOString());
+
+        const bidCount = bidsThisMonth?.length || 0;
+        const maxBids = 10 + extraBids;
+
+        if (bidCount >= maxBids) {
+          toast.error(
+            `You've reached your monthly bid limit (${maxBids} bids). Upgrade to premium for unlimited bids!`
+          );
+          setLoading(false);
+          return;
+        }
       }
 
-      // Place bid
-      const { error } = await supabase.from("bids").insert([
-        {
-          job_id: jobId,
-          freelancer_id: userId,
-          bid_amount: parseFloat(bidAmount),
-          proposal_text: proposal,
-        },
-      ]);
+      const { error } = await supabase.from("bids").insert({
+        job_id: jobId,
+        freelancer_id: userId,
+        bid_amount: validatedData.bid_amount,
+        proposal_text: validatedData.proposal_text,
+      });
 
       if (error) throw error;
 
@@ -79,7 +94,11 @@ const PlaceBidDialog = ({ jobId, userId, onBidPlaced }: PlaceBidDialogProps) => 
       setProposal("");
       onBidPlaced();
     } catch (error: any) {
-      toast.error(error.message || "Failed to place bid");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        toast.error(error.message || "Failed to place bid");
+      }
     } finally {
       setLoading(false);
     }

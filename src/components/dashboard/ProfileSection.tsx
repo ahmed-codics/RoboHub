@@ -9,6 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Plus, X, Upload, Camera, Trash2 } from "lucide-react";
+import { z } from "zod";
+
+const profileSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
+  bio: z.string().trim().max(2000, "Bio must be less than 2000 characters").optional()
+});
+
+const skillSchema = z.string().trim().min(1, "Skill cannot be empty").max(50, "Skill must be less than 50 characters");
 
 interface ProfileSectionProps {
   userId: string;
@@ -180,9 +188,18 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
   const handleSaveProfile = async () => {
     setLoading(true);
     try {
+      // Validate input
+      const validatedData = profileSchema.parse({
+        name,
+        bio: bio || undefined,
+      });
+
       const { error } = await supabase
         .from("profiles")
-        .update({ name, bio })
+        .update({ 
+          name: validatedData.name, 
+          bio: validatedData.bio || null 
+        })
         .eq("id", userId);
 
       if (error) throw error;
@@ -191,7 +208,11 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
       setEditing(false);
       onUpdate();
     } catch (error: any) {
-      toast.error(error.message || "Failed to update profile");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        toast.error(error.message || "Failed to update profile");
+      }
     } finally {
       setLoading(false);
     }
@@ -201,9 +222,12 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
     if (!newSkill.trim()) return;
 
     try {
+      // Validate skill
+      const validatedSkill = skillSchema.parse(newSkill);
+
       const { error } = await supabase
         .from("freelancer_skills")
-        .insert([{ user_id: userId, skill: newSkill.trim() }]);
+        .insert([{ user_id: userId, skill: validatedSkill }]);
 
       if (error) throw error;
 
@@ -211,7 +235,11 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
       setNewSkill("");
       loadSkills();
     } catch (error: any) {
-      toast.error(error.message || "Failed to add skill");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        toast.error(error.message || "Failed to add skill");
+      }
     }
   };
 
