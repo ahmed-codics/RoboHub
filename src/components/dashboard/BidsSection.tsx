@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
+import JobDetailsDialog from "@/components/jobs/JobDetailsDialog";
 
 interface Bid {
   id: string;
@@ -10,6 +11,7 @@ interface Bid {
   proposal_text: string;
   status: string;
   created_at: string;
+  job_id: string;
   jobs: {
     title: string;
   };
@@ -31,7 +33,7 @@ const BidsSection = ({ userId }: BidsSectionProps) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("bids")
-      .select("*, jobs(title)")
+      .select("id, bid_amount, proposal_text, status, created_at, job_id, jobs(title)")
       .eq("freelancer_id", userId)
       .order("created_at", { ascending: false })
       .limit(5);
@@ -89,9 +91,12 @@ const BidsSection = ({ userId }: BidsSectionProps) => {
                     </Badge>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Submitted {new Date(bid.created_at).toLocaleDateString()}
-                </p>
+                <div className="flex items-center justify-between mt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Submitted {new Date(bid.created_at).toLocaleDateString()}
+                  </p>
+                  <JobDetailsDialog jobId={bid.job_id} userRole="freelancer" userId={userId} />
+                </div>
               </div>
             ))}
           </div>

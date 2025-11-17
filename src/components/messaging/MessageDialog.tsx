@@ -40,29 +40,37 @@ const MessageDialog = ({ jobId, freelancerId, freelancerName }: MessageDialogPro
     if (open) {
       loadMessages();
       getCurrentUser();
-      
-      // Subscribe to realtime messages
-      const channel = supabase
-        .channel('messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `job_id=eq.${jobId}`
-          },
-          (payload) => {
-            setMessages(prev => [...prev, payload.new as Message]);
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     }
   }, [open, jobId]);
+
+  useEffect(() => {
+    if (!open || !currentUserId) return;
+
+    // Subscribe to realtime messages for this conversation
+    const channel = supabase
+      .channel(`messages-${jobId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `job_id=eq.${jobId}`
+        },
+        (payload) => {
+          const newMessage = payload.new as Message;
+          // Only add message if current user is sender or receiver
+          if (newMessage.sender_id === currentUserId || newMessage.receiver_id === currentUserId) {
+            setMessages(prev => [...prev, newMessage]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [open, jobId, currentUserId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -80,10 +88,14 @@ const MessageDialog = ({ jobId, freelancerId, freelancerName }: MessageDialogPro
   };
 
   const loadMessages = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     const { data, error } = await supabase
       .from("messages")
       .select("*")
       .eq("job_id", jobId)
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: true });
 
     if (error) {
