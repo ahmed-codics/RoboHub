@@ -19,9 +19,11 @@ const Auth = () => {
   const [role, setRole] = useState<"freelancer" | "client">("freelancer");
 
   useEffect(() => {
+    let isMounted = true;
+
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+      if (session && isMounted) {
         navigate("/dashboard");
       }
     });
@@ -29,12 +31,15 @@ const Auth = () => {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session?.user?.id);
-      if (event === 'SIGNED_IN' && session) {
+      if (event === 'SIGNED_IN' && session && isMounted) {
         navigate("/dashboard");
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
