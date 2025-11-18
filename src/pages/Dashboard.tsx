@@ -22,8 +22,7 @@ const Dashboard = () => {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        // Don't redirect here - let the auth state listener handle it
-        setLoading(false);
+        navigate("/auth");
         return;
       }
 
@@ -45,7 +44,7 @@ const Dashboard = () => {
 
       if (!roleData) {
         toast.error("No role found. Please contact support.");
-        setLoading(false);
+        navigate("/auth");
         return;
       }
 
@@ -88,6 +87,10 @@ const Dashboard = () => {
         </div>
       </div>
     );
+  }
+
+  if (!userId || !userRole) {
+    return null;
   }
 
   return (
