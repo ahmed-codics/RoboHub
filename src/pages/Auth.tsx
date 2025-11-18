@@ -29,15 +29,12 @@ const Auth = () => {
     });
 
     // Listen for auth state changes
-    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session && isMounted) {
-        navigate("/dashboard");
-      }
+    const authListener = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN") navigate("/dashboard");
     });
 
     return () => {
-      isMounted = false;
-      subscription?.subscription?.unsubscribe?.();
+      authListener.data.subscription.unsubscribe();
     };
   }, [navigate]);
 
