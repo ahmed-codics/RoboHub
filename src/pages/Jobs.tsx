@@ -34,56 +34,73 @@ const Jobs = () => {
 
   useEffect(() => {
     checkUser();
-    loadJobs();
-  }, [sortBy]);
+  }, []);
+
+  useEffect(() => {
+    if (userId) {
+      loadJobs();
+    }
+  }, [sortBy, userId]);
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
 
-    setUserId(user.id);
+      setUserId(user.id);
 
-    // Get user's current role
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
+      // Get user's current role
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    if (roleData) {
-      setUserRole(roleData.role);
+      if (roleData) {
+        setUserRole(roleData.role);
+      }
+    } catch (error) {
+      console.error("Error checking user:", error);
+      toast.error("Failed to load user data");
     }
   };
 
   const loadJobs = async () => {
-    setLoading(true);
-    let query = supabase
-      .from("jobs")
-      .select("*")
-      .eq("status", "open");
+    try {
+      setLoading(true);
+      let query = supabase
+        .from("jobs")
+        .select("*")
+        .eq("status", "open");
 
-    if (sortBy === "newest") {
-      query = query.order("created_at", { ascending: false });
-    } else if (sortBy === "oldest") {
-      query = query.order("created_at", { ascending: true });
-    } else if (sortBy === "budget_high") {
-      query = query.order("budget", { ascending: false });
-    } else if (sortBy === "budget_low") {
-      query = query.order("budget", { ascending: true });
+      if (sortBy === "newest") {
+        query = query.order("created_at", { ascending: false });
+      } else if (sortBy === "oldest") {
+        query = query.order("created_at", { ascending: true });
+      } else if (sortBy === "budget_high") {
+        query = query.order("budget", { ascending: false });
+      } else if (sortBy === "budget_low") {
+        query = query.order("budget", { ascending: true });
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error loading jobs:", error);
+        toast.error("Failed to load jobs");
+        setJobs([]);
+      } else {
+        setJobs(data || []);
+      }
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error loading jobs:", error);
-      setJobs([]);
-    } else {
-      setJobs(data || []);
-    }
-    setLoading(false);
   };
 
   const filteredJobs = jobs.filter((job) => {

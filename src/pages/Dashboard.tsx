@@ -14,11 +14,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
 
   const checkUser = useCallback(async () => {
-    if (isChecking) return; // Prevent concurrent checks
-    setIsChecking(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -35,30 +32,28 @@ const Dashboard = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
-        .limit(1);
+        .limit(1)
+        .maybeSingle();
 
       if (roleError) {
-        console.error("Error fetching user role:", roleError);
         toast.error("Failed to load user role");
         setLoading(false);
         return;
       }
 
-      if (!roleData || roleData.length === 0) {
+      if (!roleData) {
         toast.error("No role found. Please contact support.");
         setLoading(false);
         return;
       }
 
-      setUserRole(roleData[0].role);
-      setLoading(false);
+      setUserRole(roleData.role);
     } catch (error) {
-      console.error("Error checking user:", error);
-      setLoading(false);
+      toast.error("Failed to load user data");
     } finally {
-      setIsChecking(false);
+      setLoading(false);
     }
-  }, [isChecking]);
+  }, [navigate]);
 
   useEffect(() => {
     checkUser();

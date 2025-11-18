@@ -30,7 +30,6 @@ const Auth = () => {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
       if (event === 'SIGNED_IN' && session && isMounted) {
         navigate("/dashboard");
       }
@@ -47,10 +46,24 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Validate inputs
+      if (!email || !password || !name) {
+        toast.error("All fields are required");
+        setLoading(false);
+        return;
+      }
+
+      if (password.length < 6) {
+        toast.error("Password must be at least 6 characters");
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             name,
             role,

@@ -47,7 +47,7 @@ const Admin = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
-        .single();
+        .maybeSingle();
 
       if (error || roleData?.role !== "admin") {
         toast.error("Access denied. Admin privileges required.");
@@ -57,7 +57,7 @@ const Admin = () => {
 
       loadDashboardData();
     } catch (error) {
-      console.error("Error checking admin access:", error);
+      toast.error("Access denied");
       navigate("/dashboard");
     }
   };
