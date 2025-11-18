@@ -14,8 +14,11 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   const checkUser = useCallback(async () => {
+    if (isChecking) return; // Prevent concurrent checks
+    setIsChecking(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -52,8 +55,10 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error checking user:", error);
       setLoading(false);
+    } finally {
+      setIsChecking(false);
     }
-  }, []);
+  }, [isChecking]);
 
   useEffect(() => {
     checkUser();
