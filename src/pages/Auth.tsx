@@ -29,15 +29,15 @@ const Auth = () => {
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session && isMounted) {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session && isMounted) {
         navigate("/dashboard");
       }
     });
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      subscription?.subscription?.unsubscribe?.();
     };
   }, [navigate]);
 
@@ -75,9 +75,7 @@ const Auth = () => {
 
       if (data.user) {
         // Insert user role
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert([{ user_id: data.user.id, role }]);
+        const { error: roleError } = await supabase.from("user_roles").insert([{ user_id: data.user.id, role }]);
 
         if (roleError) {
           console.error("Error creating user role:", roleError);
@@ -131,9 +129,7 @@ const Auth = () => {
             <Cpu className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-2xl">Welcome to RoboWork</CardTitle>
-          <CardDescription>
-            Sign in to your account or create a new one to get started
-          </CardDescription>
+          <CardDescription>Sign in to your account or create a new one to get started</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
