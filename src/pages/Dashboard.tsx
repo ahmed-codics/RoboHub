@@ -17,8 +17,10 @@ const Dashboard = () => {
 
   const checkUser = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         // Don't redirect here - let the auth state listener handle it
         setLoading(false);
@@ -59,11 +61,13 @@ const Dashboard = () => {
     checkUser();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
         navigate("/auth");
-      } else if (event === 'SIGNED_IN' && session) {
-        checkUser();
+      } else if (event === "SIGNED_IN" && session) {
+        // checkUser();
       }
     });
 
@@ -96,11 +100,7 @@ const Dashboard = () => {
               <Cpu className="h-8 w-8 text-primary" />
               <span className="text-xl font-bold text-foreground">RoboWork</span>
             </div>
-            <Button 
-              variant="ghost" 
-              onClick={() => navigate("/jobs")}
-              className="flex items-center gap-2"
-            >
+            <Button variant="ghost" onClick={() => navigate("/jobs")} className="flex items-center gap-2">
               <Briefcase className="h-4 w-4" />
               Browse Jobs
             </Button>
@@ -123,13 +123,7 @@ const Dashboard = () => {
             {userRole === "admin" && <div>Admin Dashboard (Coming Soon)</div>}
           </div>
           <div className="lg:col-span-1">
-            {userId && userRole && (
-              <RoleSwitcher 
-                userId={userId} 
-                currentRole={userRole} 
-                onRoleChange={checkUser} 
-              />
-            )}
+            {userId && userRole && <RoleSwitcher userId={userId} currentRole={userRole} onRoleChange={checkUser} />}
           </div>
         </div>
       </main>
