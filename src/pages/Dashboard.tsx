@@ -20,7 +20,8 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        navigate("/auth");
+        // Don't redirect here - let the auth state listener handle it
+        setLoading(false);
         return;
       }
 
@@ -36,21 +37,23 @@ const Dashboard = () => {
       if (roleError) {
         console.error("Error fetching user role:", roleError);
         toast.error("Failed to load user role");
+        setLoading(false);
         return;
       }
 
       if (!roleData || roleData.length === 0) {
         toast.error("No role found. Please contact support.");
+        setLoading(false);
         return;
       }
 
       setUserRole(roleData[0].role);
+      setLoading(false);
     } catch (error) {
       console.error("Error checking user:", error);
-    } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
     checkUser();
