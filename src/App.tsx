@@ -13,6 +13,8 @@ import Admin from "./pages/Admin";
 import PremiumCheckout from "./pages/PremiumCheckout";
 import NotFound from "./pages/NotFound";
 import FloatingChatButton from "./components/chat/FloatingChatButton";
+import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -35,24 +37,26 @@ const App = () => {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={0}>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/jobs" element={<Jobs />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/premium/checkout" element={<PremiumCheckout />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          {isAuthenticated && <FloatingChatButton />}
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={0}>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+              <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+              <Route path="/premium/checkout" element={<ProtectedRoute><PremiumCheckout /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            {isAuthenticated && <FloatingChatButton />}
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
