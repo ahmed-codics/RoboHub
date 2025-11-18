@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+// src/pages/Auth.tsx  (or wherever you keep it)
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,31 +11,56 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Cpu } from "lucide-react";
 
-const Auth = () => {
+const Auth: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+
+  // Separate states for sign in and sign up (prevents cross-tab pollution)
+  const [signinEmail, setSigninEmail] = useState("");
+  const [signinPassword, setSigninPassword] = useState("");
+
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<"freelancer" | "client">("freelancer");
 
   useEffect(() => {
-    let isMounted = true;
+    // Check current session on mount
+    let mounted = true;
 
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && isMounted) {
+    (async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session && mounted) {
+          navigate("/dashboard");
+        }
+      } catch (err) {
+        // ignore: non-blocking
+        console.error("getSession error:", err);
+      }
+    })();
+
+    // Register auth state listener
+    const authListener = supabase.auth.onAuthStateChange((event, session) => {
+      // INITIAL_SESSION, SIGNED_IN, SIGNED_OUT, etc.
+      if (event === "SIGNED_IN" && session && mounted) {
         navigate("/dashboard");
       }
     });
 
-    // Listen for auth state changes
-    const authListener = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN") navigate("/dashboard");
-    });
-
     return () => {
-      authListener.data.subscription.unsubscribe();
+      mounted = false;
+      // unsubscribe safely (guarding for different shapes)
+      try {
+        // supabase.auth.onAuthStateChange returns { data: { subscription } }
+        // but guard defensively:
+        (authListener as any)?.data?.subscription?.unsubscribe?.();
+      } catch (e) {
+        // ignore unsubscribe errors
+      }
     };
   }, [navigate]);
 
@@ -43,55 +69,77 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Validate inputs
-      if (!email || !password || !name) {
+      // Basic validation
+      if (!signupEmail || !signupPassword || !name) {
         toast.error("All fields are required");
-        setLoading(false);
         return;
       }
 
-      if (password.length < 6) {
+      if (signupPassword.length < 6) {
         toast.error("Password must be at least 6 characters");
-        setLoading(false);
         return;
       }
 
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: signupEmail,
+        password: signupPassword,
         options: {
+          // include redirect after email confirmation if you want
           emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: {
-            name,
-            role,
-          },
+          // note: Supabase supports options.data as sign-up metadata (raw_user_meta_data)
+          // but it's still recommended to keep canonical user profile data in your own table.
+          data: { name, role },
         },
       });
 
       if (error) throw error;
 
-      if (data.user) {
-        // Insert user role
-        const { error: roleError } = await supabase.from("user_roles").insert([{ user_id: data.user.id, role }]);
+      // If a user object is returned, persist canonical profile/role/plan in your DB
+      const userId = (data as any)?.user?.id;
+      const hasSession = (data as any)?.session;
 
-        if (roleError) {
-          console.error("Error creating user role:", roleError);
+      if (userId) {
+        // insert user profile / role / plan and await them to avoid race conditions
+        const profileInsert = await supabase
+          .from("profiles")
+          .upsert({ id: userId, email: signupEmail, name, role }, { returning: "minimal" });
+
+        if (profileInsert.error) {
+          console.error("Error upserting profile:", profileInsert.error);
+          toast.error("Failed to create user profile. Please contact support.");
+          // continue — user might still confirm email and be able to login later
         }
 
-        // Create premium plan entry
-        const { error: planError } = await supabase
+        const roleInsert = await supabase
+          .from("user_roles")
+          .insert([{ user_id: userId, role }], { returning: "minimal" });
+
+        if (roleInsert.error) {
+          // avoid failing the whole flow — but surface
+          console.error("Error creating user role:", roleInsert.error);
+        }
+
+        const planInsert = await supabase
           .from("premium_plans")
-          .insert([{ user_id: data.user.id, plan_type: "free", extra_bids: 0 }]);
+          .insert([{ user_id: userId, plan_type: "free", extra_bids: 0 }], { returning: "minimal" });
 
-        if (planError) {
-          console.error("Error creating premium plan:", planError);
+        if (planInsert.error) {
+          console.error("Error creating premium plan:", planInsert.error);
         }
-
-        toast.success("Account created successfully!");
-        // Navigation handled by onAuthStateChange listener
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to sign up");
+
+      // If the project requires email confirmation, signUp may return user with no session.
+      if (hasSession) {
+        toast.success("Account created and signed in!");
+        // navigation will be handled by auth listener, but we can optionally navigate now:
+        navigate("/dashboard");
+      } else {
+        toast.success("Account created! Check your email to confirm your account.");
+      }
+    } catch (err: any) {
+      // Provide clearer messages for common errors
+      const message = err?.message ?? "Failed to sign up";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -102,17 +150,24 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: signinEmail,
+        password: signinPassword,
       });
 
       if (error) throw error;
 
-      toast.success("Signed in successfully!");
-      // Navigation handled by onAuthStateChange listener
-    } catch (error: any) {
-      toast.error(error.message || "Failed to sign in");
+      // If signed in immediately, redirect now (auth listener will also handle it)
+      if (data?.session) {
+        toast.success("Signed in successfully!");
+        navigate("/dashboard");
+      } else {
+        // Some projects may require email confirmation; inform the user
+        toast.success("Check your email if your account requires confirmation.");
+      }
+    } catch (err: any) {
+      const message = err?.message ?? "Failed to sign in";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -143,8 +198,8 @@ const Auth = () => {
                     id="signin-email"
                     type="email"
                     placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={signinEmail}
+                    onChange={(e) => setSigninEmail(e.target.value)}
                     required
                   />
                 </div>
@@ -154,8 +209,8 @@ const Auth = () => {
                     id="signin-password"
                     type="password"
                     placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={signinPassword}
+                    onChange={(e) => setSigninPassword(e.target.value)}
                     required
                   />
                 </div>
@@ -184,8 +239,8 @@ const Auth = () => {
                     id="signup-email"
                     type="email"
                     placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
                     required
                   />
                 </div>
@@ -195,15 +250,15 @@ const Auth = () => {
                     id="signup-password"
                     type="password"
                     placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
                     required
                     minLength={6}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>I want to</Label>
-                  <RadioGroup value={role} onValueChange={(value: any) => setRole(value)}>
+                  <RadioGroup value={role} onValueChange={(value) => setRole(value as "freelancer" | "client")}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="freelancer" id="freelancer" />
                       <Label htmlFor="freelancer" className="font-normal cursor-pointer">
