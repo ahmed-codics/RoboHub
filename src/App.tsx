@@ -22,19 +22,18 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    checkAuth();
+    // Check initial auth state
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      checkAuth();
+    // Listen for auth changes - use the session directly without additional API calls
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAuthenticated(!!session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setIsAuthenticated(!!user);
-  };
 
   return (
     <ErrorBoundary>
