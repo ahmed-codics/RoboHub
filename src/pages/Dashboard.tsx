@@ -66,7 +66,7 @@ const Dashboard = () => {
       if (event === "SIGNED_OUT") {
         navigate("/auth");
       } else if (event === "SIGNED_IN" && session) {
-        // checkUser();
+        checkUser();
       }
     });
 
