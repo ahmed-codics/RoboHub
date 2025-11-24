@@ -64,15 +64,18 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: signInData.email,
         password: signInData.password,
       });
 
       if (error) throw error;
 
-      toast.success("Signed in successfully!");
-      navigate("/dashboard");
+      if (data.session) {
+        toast.success("Signed in successfully!");
+        // Small delay to ensure session is fully established
+        setTimeout(() => navigate("/dashboard"), 100);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to sign in");
     } finally {
