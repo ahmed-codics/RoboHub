@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Jobs from "./pages/Jobs";
 import Admin from "./pages/Admin";
 import PremiumCheckout from "./pages/PremiumCheckout";
+import PaymentTest from "./pages/PaymentTest";
 import NotFound from "./pages/NotFound";
 import FloatingChatButton from "./components/chat/FloatingChatButton";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -49,6 +50,7 @@ const App = () => {
               <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
               <Route path="/premium/checkout" element={<ProtectedRoute><PremiumCheckout /></ProtectedRoute>} />
+              <Route path="/payment-test" element={<ProtectedRoute><PaymentTest /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             {isAuthenticated && <FloatingChatButton />}

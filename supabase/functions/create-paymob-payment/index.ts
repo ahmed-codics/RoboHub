@@ -76,7 +76,50 @@ Deno.serve(async (req) => {
 
     console.log('[create-paymob-payment] Calculated fees - Amount:', amount, 'Platform Fee:', platformFee, 'Total:', totalAmount);
 
-    // Step 1: Get authentication token from Paymob
+    // Check if using dummy credentials (for testing without real Paymob account)
+    const isDummyMode = PAYMOB_CONFIG.API_KEY === 'DUMMY_API_KEY_REPLACE_ME';
+
+    if (isDummyMode) {
+      console.log('[create-paymob-payment] Running in DUMMY MODE - simulating payment flow');
+      
+      // Generate fake order ID for testing
+      const dummyOrderId = `DUMMY_${Date.now()}`;
+      const dummyPaymentUrl = `#/payment-test?job_id=${job_id}&amount=${totalAmount}&order_id=${dummyOrderId}`;
+
+      // Store payment intent in database
+      const { error: intentError } = await supabase
+        .from('job_payment_intents')
+        .insert({
+          job_id,
+          client_id: user.id,
+          amount,
+          platform_fee: platformFee,
+          total_amount: totalAmount,
+          paymob_order_id: dummyOrderId,
+          payment_status: 'pending'
+        });
+
+      if (intentError) {
+        console.error('[create-paymob-payment] Failed to store payment intent:', intentError);
+      } else {
+        console.log('[create-paymob-payment] Payment intent stored (DUMMY MODE)');
+      }
+
+      // Return simulated success response
+      return new Response(
+        JSON.stringify({
+          success: true,
+          payment_url: dummyPaymentUrl,
+          order_id: dummyOrderId,
+          amount: totalAmount,
+          test_mode: true,
+          message: 'Using dummy payment mode. Update Paymob credentials in config for real payments.'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Real Paymob integration (when credentials are configured)
     console.log('[create-paymob-payment] Requesting Paymob auth token...');
     const authResponse = await fetch(`${PAYMOB_CONFIG.BASE_URL}/auth/tokens`, {
       method: 'POST',
