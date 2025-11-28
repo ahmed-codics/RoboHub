@@ -5,6 +5,7 @@ import { Briefcase, CheckCircle, Clock, DollarSign } from "lucide-react";
 import JobsList from "./JobsList";
 import CreateJobDialog from "./CreateJobDialog";
 import ClientJobsSection from "./ClientJobsSection";
+import PaymentStatusCard from "./PaymentStatusCard";
 
 interface ClientDashboardProps {
   userId: string;
@@ -133,6 +134,7 @@ const ClientDashboard = ({ userId }: ClientDashboardProps) => {
 
       {/* Main Content */}
       <div className="space-y-6">
+        <PaymentStatusCard userId={userId} />
         <ClientJobsSection userId={userId} />
       </div>
     </div>

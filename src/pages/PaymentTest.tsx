@@ -37,44 +37,7 @@ const PaymentTest = () => {
 
       if (updateError) throw updateError;
 
-      // Get job and bid info
-      const { data: job } = await supabase
-        .from("jobs")
-        .select("*, bids!inner(*)")
-        .eq("id", jobId)
-        .eq("bids.status", "accepted")
-        .single();
-
-      if (job && job.bids && job.bids.length > 0) {
-        const bid = job.bids[0];
-
-        // Create escrow transaction
-        const { error: escrowError } = await supabase
-          .from("escrow_transactions")
-          .insert({
-            job_id: jobId,
-            client_id: job.client_id,
-            freelancer_id: bid.freelancer_id,
-            amount: bid.bid_amount,
-            paymob_order_id: orderId,
-            paymob_transaction_id: `DUMMY_TX_${Date.now()}`,
-            platform_fee_paid: true,
-            status: "held",
-          });
-
-        if (escrowError) throw escrowError;
-
-        // Notify freelancer
-        await supabase.from("notifications").insert({
-          user_id: bid.freelancer_id,
-          type: "payment_received",
-          title: "Payment Received",
-          message: "The client has paid for the job. Funds are held in escrow.",
-          metadata: { job_id: jobId },
-        });
-      }
-
-      toast.success("Payment simulated successfully!");
+      toast.success("Payment confirmed! Your job is now live and accepting bids.");
       setTimeout(() => navigate("/dashboard"), 2000);
     } catch (error: any) {
       console.error("Payment simulation error:", error);
