@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Cpu } from "lucide-react";
+import logoImage from "@/assets/logo.png";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -88,9 +89,9 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Cpu className="h-12 w-12 text-primary" />
+            <img src={logoImage} alt="RemoteRobotics Logo" className="h-16 w-16" />
           </div>
-          <CardTitle className="text-2xl">Welcome to RoboWork</CardTitle>
+          <CardTitle className="text-2xl">Welcome to RemoteRobotics</CardTitle>
           <CardDescription>Sign in or create an account to get started</CardDescription>
         </CardHeader>
         <CardContent>
