@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, DollarSign, ArrowLeft, Briefcase } from "lucide-react";
 import PlaceBidDialog from "@/components/dashboard/PlaceBidDialog";
+import JobBidsDialog from "@/components/dashboard/JobBidsDialog";
 import { toast } from "sonner";
 
 interface Job {
@@ -313,7 +314,7 @@ const Jobs = () => {
                         />
                       )}
                       {userId === job.client_id && (
-                        <Badge variant="outline">Your Job</Badge>
+                        <JobBidsDialog jobId={job.id} jobTitle={job.title} />
                       )}
                     </div>
                   </div>
