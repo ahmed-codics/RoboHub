@@ -28,6 +28,7 @@ const Jobs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [skillFilter, setSkillFilter] = useState<string>("all");
   const [budgetFilter, setBudgetFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [userId, setUserId] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("");
@@ -73,8 +74,7 @@ const Jobs = () => {
       setLoading(true);
       let query = supabase
         .from("jobs")
-        .select("*")
-        .eq("status", "open");
+        .select("*");
 
       if (sortBy === "newest") {
         query = query.order("created_at", { ascending: false });
@@ -111,6 +111,8 @@ const Jobs = () => {
     const matchesSkill = skillFilter === "all" || 
       job.required_skills.some(skill => skill.toLowerCase().includes(skillFilter.toLowerCase()));
 
+    const matchesStatus = statusFilter === "all" || job.status === statusFilter;
+
     let matchesBudget = true;
     if (budgetFilter === "0-1000") {
       matchesBudget = job.budget <= 1000;
@@ -120,8 +122,38 @@ const Jobs = () => {
       matchesBudget = job.budget > 5000;
     }
 
-    return matchesSearch && matchesSkill && matchesBudget;
+    return matchesSearch && matchesSkill && matchesStatus && matchesBudget;
   });
+
+  const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+      case "open":
+        return "default";
+      case "in_progress":
+        return "secondary";
+      case "completed":
+        return "outline";
+      case "cancelled":
+        return "destructive";
+      default:
+        return "secondary";
+    }
+  };
+
+  const getStatusLabel = (status: string): string => {
+    switch (status) {
+      case "open":
+        return "Open";
+      case "in_progress":
+        return "In Progress";
+      case "completed":
+        return "Completed";
+      case "cancelled":
+        return "Cancelled";
+      default:
+        return status;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -169,6 +201,19 @@ const Jobs = () => {
               </div>
               
               <div className="flex flex-wrap gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Select value={skillFilter} onValueChange={setSkillFilter}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Filter by skill" />
@@ -229,7 +274,12 @@ const Jobs = () => {
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-xl text-foreground mb-2">{job.title}</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-semibold text-xl text-foreground">{job.title}</h3>
+                          <Badge variant={getStatusBadgeVariant(job.status)}>
+                            {getStatusLabel(job.status)}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground line-clamp-3">
                           {job.description}
                         </p>
