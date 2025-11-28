@@ -62,7 +62,7 @@ const CreateJobDialog = ({ userId, onJobCreated }: CreateJobDialogProps) => {
         required_skills: skills,
       });
 
-      const { error } = await supabase.from("jobs").insert([
+      const { data: jobData, error } = await supabase.from("jobs").insert([
         {
           client_id: userId,
           title: validatedData.title,
@@ -71,11 +71,41 @@ const CreateJobDialog = ({ userId, onJobCreated }: CreateJobDialogProps) => {
           required_skills: validatedData.required_skills,
           status: "open",
         },
-      ]);
+      ]).select().single();
 
       if (error) throw error;
 
-      toast.success("Job posted successfully!");
+      toast.success("Job posted successfully! Redirecting to payment...");
+      
+      // Initiate payment flow
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("No session found");
+
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        'create-paymob-payment',
+        {
+          body: {
+            job_id: jobData.id,
+            amount: validatedData.budget
+          }
+        }
+      );
+
+      if (paymentError) {
+        console.error("Payment initiation error:", paymentError);
+        toast.error("Job created but payment failed. Please contact support.");
+        setOpen(false);
+        onJobCreated();
+        return;
+      }
+
+      // Redirect to Paymob payment page
+      if (paymentData?.payment_url) {
+        window.location.href = paymentData.payment_url;
+      } else {
+        throw new Error("No payment URL received");
+      }
+
       setOpen(false);
       setTitle("");
       setDescription("");

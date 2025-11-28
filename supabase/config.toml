@@ -8,3 +8,12 @@ verify_jwt = true
 
 [functions.admin-stats]
 verify_jwt = true
+
+[functions.create-paymob-payment]
+verify_jwt = true
+
+[functions.paymob-webhook]
+verify_jwt = false
+
+[functions.release-escrow-funds]
+verify_jwt = true

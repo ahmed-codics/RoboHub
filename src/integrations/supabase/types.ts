@@ -63,6 +63,8 @@ export type Database = {
           freelancer_id: string
           id: string
           job_id: string
+          paymob_order_id: string | null
+          paymob_transaction_id: string | null
           platform_fee_paid: boolean
           release_requested: boolean
           release_requested_at: string | null
@@ -76,6 +78,8 @@ export type Database = {
           freelancer_id: string
           id?: string
           job_id: string
+          paymob_order_id?: string | null
+          paymob_transaction_id?: string | null
           platform_fee_paid?: boolean
           release_requested?: boolean
           release_requested_at?: string | null
@@ -89,6 +93,8 @@ export type Database = {
           freelancer_id?: string
           id?: string
           job_id?: string
+          paymob_order_id?: string | null
+          paymob_transaction_id?: string | null
           platform_fee_paid?: boolean
           release_requested?: boolean
           release_requested_at?: string | null
@@ -125,6 +131,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      job_payment_intents: {
+        Row: {
+          amount: number
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          job_id: string
+          payment_status: string
+          paymob_order_id: string | null
+          paymob_transaction_id: string | null
+          platform_fee: number
+          total_amount: number
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_id: string
+          payment_status?: string
+          paymob_order_id?: string | null
+          paymob_transaction_id?: string | null
+          platform_fee: number
+          total_amount: number
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_id?: string
+          payment_status?: string
+          paymob_order_id?: string | null
+          paymob_transaction_id?: string | null
+          platform_fee?: number
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_payment_intents_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       jobs: {
         Row: {

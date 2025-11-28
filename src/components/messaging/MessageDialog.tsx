@@ -28,6 +28,7 @@ interface MessageDialogProps {
   freelancerName: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  showReleaseButton?: boolean;
 }
 
 const MessageDialog = ({ 
@@ -35,13 +36,15 @@ const MessageDialog = ({
   freelancerId, 
   freelancerName,
   open: controlledOpen,
-  onOpenChange: controlledOnOpenChange
+  onOpenChange: controlledOnOpenChange,
+  showReleaseButton = false
 }: MessageDialogProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [sending, setSending] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Use controlled or internal state
@@ -163,6 +166,29 @@ const MessageDialog = ({
     }
   };
 
+  const handleRequestRelease = async () => {
+    setRequesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        'release-escrow-funds',
+        {
+          body: {
+            job_id: jobId,
+            action: 'request_release'
+          }
+        }
+      );
+
+      if (error) throw error;
+
+      toast.success(data.message || "Release request sent to client");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to request release");
+    } finally {
+      setRequesting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!controlledOpen && (
@@ -212,6 +238,19 @@ const MessageDialog = ({
             )}
           </div>
         </ScrollArea>
+
+        {showReleaseButton && (
+          <div className="border-t pt-4">
+            <Button 
+              onClick={handleRequestRelease}
+              disabled={requesting}
+              variant="secondary"
+              className="w-full"
+            >
+              {requesting ? "Requesting..." : "Request Payment Release"}
+            </Button>
+          </div>
+        )}
 
         <div className="flex gap-2 pt-4 border-t">
           <Textarea
