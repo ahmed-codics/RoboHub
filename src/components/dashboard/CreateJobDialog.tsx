@@ -101,7 +101,13 @@ const CreateJobDialog = ({ userId, onJobCreated }: CreateJobDialogProps) => {
 
       // Redirect to Paymob payment page
       if (paymentData?.payment_url) {
-        window.location.href = paymentData.payment_url;
+        if (paymentData.test_mode) {
+          // In test mode, navigate within the app
+          window.location.href = paymentData.payment_url;
+        } else {
+          // In production mode, redirect to external Paymob page
+          window.location.href = paymentData.payment_url;
+        }
       } else {
         throw new Error("No payment URL received");
       }
