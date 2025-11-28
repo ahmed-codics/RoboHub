@@ -31,10 +31,26 @@ const EscrowManager = ({ jobId, isClient, isFreelancer = false }: EscrowManagerP
   const [escrow, setEscrow] = useState<EscrowTransaction | null>(null);
   const [loading, setLoading] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     loadEscrow();
+    checkAdminStatus();
   }, [jobId]);
+
+  const checkAdminStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .single();
+
+    setIsAdmin(!!data);
+  };
 
   const loadEscrow = async () => {
     const { data, error } = await supabase
@@ -59,33 +75,19 @@ const EscrowManager = ({ jobId, isClient, isFreelancer = false }: EscrowManagerP
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("escrow_transactions")
-        .update({
-          status: "released",
-          released_at: new Date().toISOString(),
-        })
-        .eq("id", escrow.id);
+      const { data, error } = await supabase.functions.invoke(
+        'release-escrow-funds',
+        {
+          body: {
+            job_id: jobId,
+            action: 'approve_release'
+          }
+        }
+      );
 
       if (error) throw error;
 
-      // Update job status to completed
-      await supabase
-        .from("jobs")
-        .update({ status: "completed" })
-        .eq("id", jobId);
-
-      // Create notification for freelancer
-      await supabase.from("notifications").insert([
-        {
-          user_id: escrow.freelancer_id,
-          type: "payment_released",
-          title: "Payment Released",
-          message: `Payment of $${escrow.amount} has been released for "${escrow.jobs.title}".`,
-        },
-      ]);
-
-      toast.success("Funds released successfully!");
+      toast.success(data.message || "Funds released successfully!");
       loadEscrow();
     } catch (error: any) {
       toast.error(error.message || "Failed to release funds");
@@ -126,34 +128,19 @@ const EscrowManager = ({ jobId, isClient, isFreelancer = false }: EscrowManagerP
 
     setRequesting(true);
     try {
-      const { error } = await supabase
-        .from("escrow_transactions")
-        .update({
-          release_requested: true,
-          release_requested_at: new Date().toISOString(),
-        })
-        .eq("id", escrow.id);
+      const { data, error } = await supabase.functions.invoke(
+        'release-escrow-funds',
+        {
+          body: {
+            job_id: jobId,
+            action: 'request_release'
+          }
+        }
+      );
 
       if (error) throw error;
 
-      // Notify client
-      const { data: jobData } = await supabase
-        .from("jobs")
-        .select("client_id, title")
-        .eq("id", jobId)
-        .single();
-
-      if (jobData) {
-        await supabase.from("notifications").insert({
-          user_id: jobData.client_id,
-          type: "release_requested",
-          title: "Release Request",
-          message: `Freelancer has requested fund release for "${jobData.title}"`,
-          metadata: { job_id: jobId, escrow_id: escrow.id },
-        });
-      }
-
-      toast.success("Release request sent to client");
+      toast.success(data.message || "Release request sent to client");
       loadEscrow();
     } catch (error: any) {
       toast.error(error.message || "Failed to request release");
@@ -217,23 +204,25 @@ const EscrowManager = ({ jobId, isClient, isFreelancer = false }: EscrowManagerP
           </Button>
         )}
         
-        {isClient && escrow.status === "held" && (
+        {(isClient || isAdmin) && escrow.status === "held" && (
           <div className="flex gap-2 pt-2">
             <Button
               onClick={handleReleaseFunds}
               disabled={loading}
               className="flex-1"
             >
-              Release Funds
+              {isAdmin ? "Admin Release" : "Release Funds"}
             </Button>
-            <Button
-              onClick={handleRefund}
-              disabled={loading}
-              variant="outline"
-              className="flex-1"
-            >
-              Refund
-            </Button>
+            {isClient && (
+              <Button
+                onClick={handleRefund}
+                disabled={loading}
+                variant="outline"
+                className="flex-1"
+              >
+                Refund
+              </Button>
+            )}
           </div>
         )}
 
