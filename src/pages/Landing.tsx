@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Cpu, Zap, Shield, Users } from "lucide-react";
+import logoImage from "@/assets/logo.png";
 
 const Landing = () => {
   return (
@@ -8,9 +9,9 @@ const Landing = () => {
       {/* Header */}
       <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-50 bg-background/80">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Cpu className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold text-foreground">RoboWork</span>
+          <div className="flex items-center gap-3">
+            <img src={logoImage} alt="RemoteRobotics Logo" className="h-10 w-10" />
+            <span className="text-xl font-bold text-foreground">RemoteRobotics</span>
           </div>
           <nav className="flex items-center gap-4">
             <Link to="/auth">
@@ -70,7 +71,7 @@ const Landing = () => {
       {/* Features Section */}
       <section className="container mx-auto px-4 py-20">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-12 text-foreground">
-          Why Choose RoboWork?
+          Why Choose RemoteRobotics?
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg transition-shadow">
@@ -122,7 +123,7 @@ const Landing = () => {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>© 2024 RoboWork. The premier platform for remote robotics work.</p>
+          <p>© 2025 RemoteRobotics. The premier platform for remote robotics work.</p>
         </div>
       </footer>
     </div>
