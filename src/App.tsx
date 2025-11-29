@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Jobs from "./pages/Jobs";
 import Admin from "./pages/Admin";
+import Partners from "./pages/Partners";
 import PremiumCheckout from "./pages/PremiumCheckout";
 import PaymentTest from "./pages/PaymentTest";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/partners" element={<Partners />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
