@@ -14,6 +14,9 @@ const Landing = () => {
             <span className="text-xl font-bold text-foreground">RemoteRobotics</span>
           </div>
           <nav className="flex items-center gap-4">
+            <Link to="/partners">
+              <Button variant="ghost">Partners</Button>
+            </Link>
             <Link to="/auth">
               <Button variant="ghost">Sign In</Button>
             </Link>
