@@ -21,7 +21,6 @@ Deno.serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      console.error('[create-paymob-payment] No authorization header');
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -34,7 +33,6 @@ Deno.serve(async (req) => {
     );
 
     if (authError || !user) {
-      console.error('[create-paymob-payment] Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -44,218 +42,191 @@ Deno.serve(async (req) => {
     console.log('[create-paymob-payment] Request from user:', user.id);
 
     // Parse request body
-    const { job_id, amount } = await req.json();
+    // payment_type: 'job_funding' | 'subscription'
+    const { job_id, amount, payment_type = 'job_funding' } = await req.json();
 
-    if (!job_id || !amount) {
-      console.error('[create-paymob-payment] Missing job_id or amount');
+    if (!amount) {
       return new Response(
-        JSON.stringify({ error: 'job_id and amount are required' }),
+        JSON.stringify({ error: 'amount is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify the job exists and user is the client
-    const { data: job, error: jobError } = await supabase
-      .from('jobs')
-      .select('*')
-      .eq('id', job_id)
-      .eq('client_id', user.id)
-      .single();
+    let orderInfo = {
+      title: 'Payment',
+      description: 'Payment',
+      merchant_order_id: '',
+      platform_fee: 0,
+      total_amount: amount
+    };
 
-    if (jobError || !job) {
-      console.error('[create-paymob-payment] Job not found or unauthorized:', jobError);
-      return new Response(
-        JSON.stringify({ error: 'Job not found or unauthorized' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // --- Validation Based on Type ---
+
+    if (payment_type === 'job_funding') {
+      if (!job_id) {
+        return new Response(JSON.stringify({ error: 'job_id is required for job funding' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Verify Job
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', job_id)
+        .eq('client_id', user.id)
+        .single();
+
+      if (jobError || !job) {
+        return new Response(JSON.stringify({ error: 'Job not found or unauthorized' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const platformFee = (amount * PAYMOB_CONFIG.PLATFORM_FEE_PERCENTAGE) / 100;
+      orderInfo.platform_fee = platformFee;
+      orderInfo.total_amount = amount + platformFee;
+      orderInfo.title = job.title;
+      orderInfo.description = job.description.substring(0, 100);
+      orderInfo.merchant_order_id = job_id;
+
+    } else if (payment_type === 'subscription') {
+      orderInfo.title = 'Premium Subscription';
+      orderInfo.description = 'Monthly premium subscription upgrade';
+      orderInfo.merchant_order_id = `SUB_${user.id}_${Date.now()}`; // Unique ID for subscription attempt
+      orderInfo.platform_fee = 0; // No extra fee for subscription usually
+      orderInfo.total_amount = amount;
+    } else {
+      return new Response(JSON.stringify({ error: 'Invalid payment_type' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Calculate platform fee and total
-    const platformFee = (amount * PAYMOB_CONFIG.PLATFORM_FEE_PERCENTAGE) / 100;
-    const totalAmount = amount + platformFee;
+    // --- Paymob Integration ---
 
-    console.log('[create-paymob-payment] Calculated fees - Amount:', amount, 'Platform Fee:', platformFee, 'Total:', totalAmount);
-
-    // Check if using dummy credentials (for testing without real Paymob account)
+    // Check if using dummy credentials
     const isDummyMode = PAYMOB_CONFIG.API_KEY === 'DUMMY_API_KEY_REPLACE_ME';
 
     if (isDummyMode) {
-      console.log('[create-paymob-payment] Running in DUMMY MODE - simulating payment flow');
-      
-      // Generate fake order ID for testing
-      const dummyOrderId = `DUMMY_${Date.now()}`;
-      const dummyPaymentUrl = `#/payment-test?job_id=${job_id}&amount=${totalAmount}&order_id=${dummyOrderId}`;
+      console.log('[create-paymob-payment] Running in DUMMY MODE');
 
-      // Store payment intent in database
-      const { error: intentError } = await supabase
-        .from('job_payment_intents')
-        .insert({
+      const dummyOrderId = `DUMMY_${Date.now()}`;
+
+      // Where to redirect in dummy mode?
+      // Since we don't have a real iframe, we redirect to a test page or return a dummy URL
+      // We will assume the frontend handles the redirect to /payment-test based on response
+
+      const dummyPaymentUrl = `#/payment-test?amount=${orderInfo.total_amount}&order_id=${dummyOrderId}&type=${payment_type}`;
+
+      // Store Payment Intent (Generic or Job specific)
+      // For subscription, we might not have a 'job_payment_intents' entry... 
+      // Ideally we should have a 'payment_intents' table or similar. 
+      // But for now, if it's job funding, store it.
+
+      if (payment_type === 'job_funding') {
+        await supabase.from('job_payment_intents').insert({
           job_id,
           client_id: user.id,
           amount,
-          platform_fee: platformFee,
-          total_amount: totalAmount,
+          platform_fee: orderInfo.platform_fee,
+          total_amount: orderInfo.total_amount,
           paymob_order_id: dummyOrderId,
           payment_status: 'pending'
         });
-
-      if (intentError) {
-        console.error('[create-paymob-payment] Failed to store payment intent:', intentError);
       } else {
-        console.log('[create-paymob-payment] Payment intent stored (DUMMY MODE)');
+        // For subscription, maybe check if we have a table or just relying on webhook matching orderID
+        // We can insert into 'payments' table as pending
+        await supabase.from('payments').insert({
+          user_id: user.id,
+          amount: orderInfo.total_amount,
+          type: 'premium_subscription',
+          status: 'pending',
+          metadata: { paymob_order_id: dummyOrderId }
+        });
       }
 
-      // Return simulated success response
       return new Response(
         JSON.stringify({
           success: true,
           payment_url: dummyPaymentUrl,
           order_id: dummyOrderId,
-          amount: totalAmount,
-          test_mode: true,
-          message: 'Using dummy payment mode. Update Paymob credentials in config for real payments.'
+          amount: orderInfo.total_amount,
+          test_mode: true
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Real Paymob integration (when credentials are configured)
-    console.log('[create-paymob-payment] Requesting Paymob auth token...');
+    // --- Real Paymob Flow ---
+
+    // 1. Auth
     const authResponse = await fetch(`${PAYMOB_CONFIG.BASE_URL}/auth/tokens`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: PAYMOB_CONFIG.API_KEY }),
     });
+    const { token: authToken } = await authResponse.json();
 
-    if (!authResponse.ok) {
-      const authError = await authResponse.text();
-      console.error('[create-paymob-payment] Paymob auth failed:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Payment gateway authentication failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const authData = await authResponse.json();
-    const authToken = authData.token;
-    console.log('[create-paymob-payment] Auth token obtained');
-
-    // Step 2: Create order
-    console.log('[create-paymob-payment] Creating Paymob order...');
+    // 2. Create Order
     const orderResponse = await fetch(`${PAYMOB_CONFIG.BASE_URL}/ecommerce/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         auth_token: authToken,
         delivery_needed: false,
-        amount_cents: Math.round(totalAmount * 100), // Convert to cents
+        amount_cents: Math.round(orderInfo.total_amount * 100),
         currency: 'EGP',
-        merchant_order_id: job_id,
+        merchant_order_id: orderInfo.merchant_order_id,
         items: [{
-          name: job.title,
-          amount_cents: Math.round(amount * 100),
-          description: job.description.substring(0, 100),
+          name: orderInfo.title,
+          amount_cents: Math.round(orderInfo.total_amount * 100),
+          description: orderInfo.description,
           quantity: 1
         }]
       }),
     });
+    const { id: orderId } = await orderResponse.json();
 
-    if (!orderResponse.ok) {
-      const orderError = await orderResponse.text();
-      console.error('[create-paymob-payment] Paymob order creation failed:', orderError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create payment order' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const orderData = await orderResponse.json();
-    const orderId = orderData.id;
-    console.log('[create-paymob-payment] Order created:', orderId);
-
-    // Step 3: Get payment key
-    console.log('[create-paymob-payment] Requesting payment key...');
+    // 3. Payment Key
     const paymentKeyResponse = await fetch(`${PAYMOB_CONFIG.BASE_URL}/acceptance/payment_keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         auth_token: authToken,
-        amount_cents: Math.round(totalAmount * 100),
+        amount_cents: Math.round(orderInfo.total_amount * 100),
         expiration: 3600,
         order_id: orderId,
         billing_data: {
-          apartment: 'NA',
-          email: user.email || 'client@example.com',
-          floor: 'NA',
-          first_name: user.email?.split('@')[0] || 'Client',
-          street: 'NA',
-          building: 'NA',
-          phone_number: 'NA',
-          shipping_method: 'NA',
-          postal_code: 'NA',
-          city: 'NA',
-          country: 'NA',
-          last_name: 'User',
-          state: 'NA'
+          apartment: 'NA', email: user.email || 'user@example.com', floor: 'NA', first_name: user.id.slice(0, 6), street: 'NA', building: 'NA', phone_number: 'NA', shipping_method: 'NA', postal_code: 'NA', city: 'NA', country: 'NA', last_name: 'User', state: 'NA'
         },
         currency: 'EGP',
         integration_id: PAYMOB_CONFIG.INTEGRATION_ID,
         lock_order_when_paid: true
       }),
     });
+    const { token: paymentKey } = await paymentKeyResponse.json();
 
-    if (!paymentKeyResponse.ok) {
-      const paymentKeyError = await paymentKeyResponse.text();
-      console.error('[create-paymob-payment] Payment key creation failed:', paymentKeyError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate payment key' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const paymentKeyData = await paymentKeyResponse.json();
-    const paymentKey = paymentKeyData.token;
-    console.log('[create-paymob-payment] Payment key generated');
-
-    // Store payment intent in database
-    const { error: intentError } = await supabase
-      .from('job_payment_intents')
-      .insert({
-        job_id,
-        client_id: user.id,
-        amount,
-        platform_fee: platformFee,
-        total_amount: totalAmount,
-        paymob_order_id: orderId.toString(),
-        payment_status: 'pending'
+    // Store Intent
+    if (payment_type === 'job_funding') {
+      await supabase.from('job_payment_intents').insert({
+        job_id, client_id: user.id, amount, platform_fee: orderInfo.platform_fee, total_amount: orderInfo.total_amount, paymob_order_id: orderId.toString(), payment_status: 'pending'
       });
-
-    if (intentError) {
-      console.error('[create-paymob-payment] Failed to store payment intent:', intentError);
     } else {
-      console.log('[create-paymob-payment] Payment intent stored');
+      await supabase.from('payments').insert({
+        user_id: user.id, amount: orderInfo.total_amount, type: 'premium_subscription', status: 'pending', metadata: { paymob_order_id: orderId.toString() }
+      });
     }
 
-    // Return iframe URL
     const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${PAYMOB_CONFIG.IFRAME_ID}?payment_token=${paymentKey}`;
-    
-    console.log('[create-paymob-payment] Payment URL generated successfully');
 
     return new Response(
       JSON.stringify({
         success: true,
         payment_url: iframeUrl,
         order_id: orderId,
-        amount: totalAmount
+        amount: orderInfo.total_amount
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('[create-paymob-payment] Unexpected error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Paymob Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: errorMessage }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

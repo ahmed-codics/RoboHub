@@ -1,17 +1,33 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Briefcase, Star, TrendingUp, Award, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Briefcase, Star, TrendingUp, Award } from "lucide-react";
 import ProfileSection from "./ProfileSection";
 import BidsSection from "./BidsSection";
 import PremiumSection from "./PremiumSection";
 import BidUsageCounter from "./BidUsageCounter";
+import { cn } from "@/lib/utils";
 
 interface FreelancerDashboardProps {
   userId: string;
 }
+
+const StatCard = ({ title, value, subtext, icon: Icon, colorClass }: any) => (
+  <div className="glass-card p-6 rounded-2xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
+    <div className={cn("absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity", colorClass)}>
+      <Icon className="h-24 w-24" />
+    </div>
+    <div className="relative z-10">
+      <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center mb-4 bg-white/10 backdrop-blur-md", colorClass)}>
+        <Icon className="h-6 w-6 text-white" />
+      </div>
+      <p className="text-sm font-medium text-slate-400">{title}</p>
+      <h3 className="text-3xl font-bold text-white mt-1">{value}</h3>
+      <p className="text-xs text-slate-500 mt-2">{subtext}</p>
+    </div>
+  </div>
+);
 
 const FreelancerDashboard = ({ userId }: FreelancerDashboardProps) => {
   const [profile, setProfile] = useState<any>(null);
@@ -29,41 +45,24 @@ const FreelancerDashboard = ({ userId }: FreelancerDashboardProps) => {
   }, [userId]);
 
   const loadProfile = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      console.error("Error loading profile:", error);
-      return;
-    }
-
+    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
     setProfile(data);
   };
 
   const loadStats = async () => {
-    // Get total bids this month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const { data: bidsData, error: bidsError } = await supabase
+    const { data: bidsData } = await supabase
       .from("bids")
       .select("id, status")
       .eq("freelancer_id", userId)
       .gte("created_at", startOfMonth.toISOString());
 
-    if (bidsError) {
-      console.error("Error loading bids:", bidsError);
-      return;
-    }
-
     const totalBids = bidsData?.length || 0;
     const acceptedBids = bidsData?.filter((bid) => bid.status === "accepted").length || 0;
 
-    // Get premium plan
     const { data: planData } = await supabase
       .from("premium_plans")
       .select("*")
@@ -73,92 +72,71 @@ const FreelancerDashboard = ({ userId }: FreelancerDashboardProps) => {
     const isPremium = planData?.plan_type === "premium";
     const availableBids = isPremium ? 999 : Math.max(0, 10 - totalBids);
 
-    setStats({
-      totalBids,
-      acceptedBids,
-      availableBids,
-      bidsThisMonth: totalBids,
-      isPremium,
-    });
+    setStats({ totalBids, acceptedBids, availableBids, bidsThisMonth: totalBids, isPremium });
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Freelancer Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {profile?.name || "Freelancer"}!</p>
+    <div className="space-y-8">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Bids This Month"
+          value={stats.totalBids}
+          subtext={`${stats.availableBids} remaining`}
+          icon={Briefcase}
+          colorClass="text-blue-400 bg-blue-500/20"
+        />
+        <StatCard
+          title="Active Projects"
+          value={stats.acceptedBids}
+          subtext="Currently in progress"
+          icon={Zap}
+          colorClass="text-yellow-400 bg-yellow-500/20"
+        />
+        <StatCard
+          title="Success Rate"
+          value={`${stats.totalBids > 0 ? Math.round((stats.acceptedBids / stats.totalBids) * 100) : 0}%`}
+          subtext="Proposal acceptance"
+          icon={TrendingUp}
+          colorClass="text-green-400 bg-green-500/20"
+        />
+        <StatCard
+          title="Client Rating"
+          value="4.9"
+          subtext="Consistent Top Rated"
+          icon={Star}
+          colorClass="text-purple-400 bg-purple-500/20"
+        />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bids This Month</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalBids}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.availableBids} bids remaining
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Accepted Bids</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.acceptedBids}</div>
-            <p className="text-xs text-muted-foreground">
-              Active projects
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.totalBids > 0 ? Math.round((stats.acceptedBids / stats.totalBids) * 100) : 0}%
+      {/* Main Content Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2 space-y-8">
+          <div className="glass-card rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white">Recent Activity</h3>
+              <Button variant="ghost" size="sm">View All</Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Bid acceptance rate
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rating</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">4.8</div>
-            <p className="text-xs text-muted-foreground">
-              Based on 12 reviews
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <BidsSection userId={userId} />
+            <BidsSection userId={userId} />
+          </div>
         </div>
 
-        <div className="space-y-6">
-          <BidUsageCounter 
-            bidsThisMonth={stats.bidsThisMonth} 
-            maxBids={10} 
-            isPremium={stats.isPremium} 
-          />
-          <ProfileSection userId={userId} profile={profile} onUpdate={loadProfile} />
+        <div className="space-y-8">
+          <div className="glass-card rounded-2xl p-6">
+            <ProfileSection userId={userId} profile={profile} onUpdate={loadProfile} />
+          </div>
+
+          <div className="glass-card rounded-2xl p-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent"></div>
+            <div className="relative z-10">
+              <BidUsageCounter
+                bidsThisMonth={stats.bidsThisMonth}
+                maxBids={10}
+                isPremium={stats.isPremium}
+              />
+            </div>
+          </div>
+
           <PremiumSection userId={userId} />
         </div>
       </div>

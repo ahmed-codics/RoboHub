@@ -14,6 +14,7 @@ import Partners from "./pages/Partners";
 import PremiumCheckout from "./pages/PremiumCheckout";
 import PaymentTest from "./pages/PaymentTest";
 import NotFound from "./pages/NotFound";
+import Search from "./pages/Search";
 import FloatingChatButton from "./components/chat/FloatingChatButton";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -28,7 +29,7 @@ const App = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
     });
-    
+
     // Listen for auth changes - use the session directly without additional API calls
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
@@ -48,6 +49,7 @@ const App = () => {
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/partners" element={<Partners />} />
+              <Route path="/search" element={<Search />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />

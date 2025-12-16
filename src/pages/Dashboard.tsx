@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Cpu, Briefcase } from "lucide-react";
+import { Cpu, Search } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import FreelancerDashboard from "@/components/dashboard/FreelancerDashboard";
 import ClientDashboard from "@/components/dashboard/ClientDashboard";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
+import DashboardSidebar from "@/components/layout/DashboardSidebar";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -17,18 +18,10 @@ const Dashboard = () => {
 
   const checkUser = useCallback(async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/auth"); return; }
       setUserId(session.user.id);
 
-      // Get user role (handle multiple roles by taking the first one)
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
@@ -36,18 +29,11 @@ const Dashboard = () => {
         .limit(1)
         .maybeSingle();
 
-      if (roleError) {
+      if (roleError || !roleData) {
         toast.error("Failed to load user role");
-        setLoading(false);
-        return;
-      }
-
-      if (!roleData) {
-        toast.error("No role found. Please contact support.");
         navigate("/auth");
         return;
       }
-
       setUserRole(roleData.role);
     } catch (error) {
       toast.error("Failed to load user data");
@@ -58,18 +44,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     checkUser();
-
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") {
-        navigate("/auth");
-      } else if (event === "SIGNED_IN" && session) {
-        checkUser();
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") navigate("/auth");
+      else if (event === "SIGNED_IN" && session) checkUser();
     });
-
     return () => subscription.unsubscribe();
   }, [checkUser, navigate]);
 
@@ -82,54 +60,65 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin">
-          <Cpu className="h-12 w-12 text-primary" />
-        </div>
+        <div className="animate-spin text-primary"><Cpu className="h-12 w-12" /></div>
       </div>
     );
   }
 
-  if (!userId || !userRole) {
-    return null;
-  }
+  if (!userId || !userRole) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header */}
-      <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-50 bg-background/80">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Cpu className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold text-foreground">RoboWork</span>
-            </div>
-            <Button variant="ghost" onClick={() => navigate("/jobs")} className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              Browse Jobs
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            {userId && <NotificationBell userId={userId} />}
-            <Button onClick={handleSignOut} variant="outline">
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Sidebar */}
+      <DashboardSidebar
+        userRole={userRole}
+        onNavigate={(path) => navigate(path)}
+        onSignOut={handleSignOut}
+      />
 
-      {/* Dashboard Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3">
-            {userRole === "freelancer" && userId && <FreelancerDashboard userId={userId} />}
-            {userRole === "client" && userId && <ClientDashboard userId={userId} />}
-            {userRole === "admin" && <div>Admin Dashboard (Coming Soon)</div>}
+      {/* Main Content Area */}
+      <div className="pl-64 transition-all duration-300">
+        {/* Top Header */}
+        <header className="h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 px-8 flex items-center justify-between">
+          <div className="flex items-center gap-4 w-96">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search jobs, projects, or freelancers..."
+                className="pl-10 bg-slate-100 dark:bg-slate-800 border-none focus-visible:ring-1 focus-visible:ring-primary"
+              />
+            </div>
           </div>
-          <div className="lg:col-span-1">
-            {userId && userRole && <RoleSwitcher userId={userId} currentRole={userRole} onRoleChange={checkUser} />}
+
+          <div className="flex items-center gap-4">
+            <RoleSwitcher userId={userId} currentRole={userRole} onRoleChange={checkUser} />
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
+            <NotificationBell userId={userId} />
           </div>
-        </div>
-      </main>
+        </header>
+
+        {/* Dashboard Views */}
+        <main className="p-8">
+          <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-1">Welcome back, get ready for your next project.</p>
+              </div>
+              <div className="text-sm text-slate-500 bg-white dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm">
+                {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            </div>
+
+            {/* Dynamic Dashboard Content */}
+            <div className="bg-white/50 dark:bg-slate-900/50 rounded-2xl p-1">
+              {userRole === "freelancer" && <FreelancerDashboard userId={userId} />}
+              {userRole === "client" && <ClientDashboard userId={userId} />}
+              {userRole === "admin" && <div className="p-8 text-center">Admin details coming soon...</div>}
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

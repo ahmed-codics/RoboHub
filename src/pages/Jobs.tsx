@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, DollarSign, ArrowLeft, Briefcase } from "lucide-react";
+import { Search, DollarSign, ArrowLeft, Briefcase, Filter } from "lucide-react";
 import PlaceBidDialog from "@/components/dashboard/PlaceBidDialog";
 import JobBidsDialog from "@/components/dashboard/JobBidsDialog";
 import { toast } from "sonner";
+import DashboardSidebar from "@/components/layout/DashboardSidebar";
 
 interface Job {
   id: string;
@@ -34,296 +35,137 @@ const Jobs = () => {
   const [userId, setUserId] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("");
 
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  useEffect(() => {
-    if (userId) {
-      loadJobs();
-    }
-  }, [sortBy, userId]);
-
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/auth"); return; }
+      setUserId(session.user.id);
 
-      setUserId(user.id);
+      const { data: roleData } = await supabase.from("user_roles").select("role").eq("user_id", session.user.id).maybeSingle();
+      if (roleData) setUserRole(roleData.role);
+    } catch (error) { toast.error("Failed to load user data"); }
+  }, [navigate]);
 
-      // Get user's current role
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
+  useEffect(() => { checkUser(); }, [checkUser]);
 
-      if (roleData) {
-        setUserRole(roleData.role);
-      }
-    } catch (error) {
-      console.error("Error checking user:", error);
-      toast.error("Failed to load user data");
-    }
-  };
+  useEffect(() => {
+    if (userId) loadJobs();
+  }, [userId, sortBy]);
 
   const loadJobs = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from("jobs")
-        .select("*");
+      let query = supabase.from("jobs").select("*");
 
-      if (sortBy === "newest") {
-        query = query.order("created_at", { ascending: false });
-      } else if (sortBy === "oldest") {
-        query = query.order("created_at", { ascending: true });
-      } else if (sortBy === "budget_high") {
-        query = query.order("budget", { ascending: false });
-      } else if (sortBy === "budget_low") {
-        query = query.order("budget", { ascending: true });
-      }
+      if (sortBy === "newest") query = query.order("created_at", { ascending: false });
+      else if (sortBy === "oldest") query = query.order("created_at", { ascending: true });
+      else if (sortBy === "budget_high") query = query.order("budget", { ascending: false });
+      else if (sortBy === "budget_low") query = query.order("budget", { ascending: true });
 
       const { data, error } = await query;
-
-      if (error) {
-        console.error("Error loading jobs:", error);
-        toast.error("Failed to load jobs");
-        setJobs([]);
-      } else {
-        setJobs(data || []);
-      }
+      if (error) throw error;
+      setJobs(data || []);
     } catch (error) {
-      console.error("Unexpected error:", error);
-      toast.error("An unexpected error occurred");
+      toast.error("Failed to load jobs");
     } finally {
       setLoading(false);
     }
   };
 
   const filteredJobs = jobs.filter((job) => {
-    const matchesSearch = searchTerm === "" || 
-      job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.description.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesSkill = skillFilter === "all" || 
-      job.required_skills.some(skill => skill.toLowerCase().includes(skillFilter.toLowerCase()));
-
+    const matchesSearch = searchTerm === "" || job.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSkill = skillFilter === "all" || job.required_skills.some(skill => skill.toLowerCase().includes(skillFilter.toLowerCase()));
     const matchesStatus = statusFilter === "all" || job.status === statusFilter;
-
     let matchesBudget = true;
-    if (budgetFilter === "0-1000") {
-      matchesBudget = job.budget <= 1000;
-    } else if (budgetFilter === "1000-5000") {
-      matchesBudget = job.budget > 1000 && job.budget <= 5000;
-    } else if (budgetFilter === "5000+") {
-      matchesBudget = job.budget > 5000;
-    }
+    if (budgetFilter === "0-1000") matchesBudget = job.budget <= 1000;
+    else if (budgetFilter === "1000-5000") matchesBudget = job.budget > 1000 && job.budget <= 5000;
+    else if (budgetFilter === "5000+") matchesBudget = job.budget > 5000;
 
     return matchesSearch && matchesSkill && matchesStatus && matchesBudget;
   });
 
-  const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status) {
-      case "open":
-        return "default";
-      case "in_progress":
-        return "secondary";
-      case "completed":
-        return "outline";
-      case "cancelled":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
-
-  const getStatusLabel = (status: string): string => {
-    switch (status) {
-      case "open":
-        return "Open";
-      case "in_progress":
-        return "In Progress";
-      case "completed":
-        return "Completed";
-      case "cancelled":
-        return "Cancelled";
-      default:
-        return status;
-    }
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <DashboardSidebar userRole={userRole} activePath="/jobs" onNavigate={navigate} onSignOut={handleSignOut} />
+
+      <div className="pl-64">
+        <div className="max-w-7xl mx-auto p-8 space-y-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/dashboard")}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-              <div className="flex items-center gap-2">
-                <Briefcase className="h-6 w-6 text-primary" />
-                <h1 className="text-2xl font-bold text-foreground">Available Jobs</h1>
-              </div>
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Experience Jobs</h1>
+              <p className="text-slate-500 dark:text-slate-400">Discover and bid on robotic projects.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-2"><Filter className="w-4 h-4" /> More Filters</Button>
             </div>
           </div>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Browse Robotics Projects</CardTitle>
-            <CardDescription>
-              Find and bid on exciting robotics opportunities from clients worldwide
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Search and Filters */}
-            <div className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search jobs by title or description..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="open">Open</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={skillFilter} onValueChange={setSkillFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by skill" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Skills</SelectItem>
-                    <SelectItem value="ros">ROS</SelectItem>
-                    <SelectItem value="slam">SLAM</SelectItem>
-                    <SelectItem value="embedded">Embedded</SelectItem>
-                    <SelectItem value="control">Control Systems</SelectItem>
-                    <SelectItem value="simulation">Simulation</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={budgetFilter} onValueChange={setBudgetFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by budget" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Budgets</SelectItem>
-                    <SelectItem value="0-1000">Under $1,000</SelectItem>
-                    <SelectItem value="1000-5000">$1,000 - $5,000</SelectItem>
-                    <SelectItem value="5000+">$5,000+</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                    <SelectItem value="budget_high">Highest Budget</SelectItem>
-                    <SelectItem value="budget_low">Lowest Budget</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Search Bar */}
+          <div className="glass-card p-4 rounded-xl flex gap-4 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+              <Input
+                placeholder="Search by keyword..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 h-11 bg-slate-900/50 border-slate-700 text-white"
+              />
             </div>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px] h-11 bg-slate-900/50 border-slate-700 text-white">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="budget_high">Highest Budget</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Jobs List */}
-            {loading ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">Loading jobs...</p>
-              </div>
-            ) : filteredJobs.length === 0 ? (
-              <div className="text-center py-12">
-                <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium text-foreground">No jobs match your filters</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your search criteria</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredJobs.map((job) => (
-                  <div
-                    key={job.id}
-                    className="border border-border rounded-lg p-6 hover:border-primary/50 transition-colors bg-card"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-xl text-foreground">{job.title}</h3>
-                          <Badge variant={getStatusBadgeVariant(job.status)}>
-                            {getStatusLabel(job.status)}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-3">
-                          {job.description}
-                        </p>
-                      </div>
-                      <div className="text-right ml-6">
-                        <div className="flex items-center gap-1 text-primary font-bold text-xl">
-                          <DollarSign className="h-5 w-5" />
-                          {job.budget.toLocaleString()}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">Budget</p>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {job.required_skills.map((skill, index) => (
-                        <Badge key={index} variant="secondary">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-border">
-                      <p className="text-xs text-muted-foreground">
-                        Posted {new Date(job.created_at).toLocaleDateString()}
-                      </p>
-                      {userRole === "freelancer" && userId !== job.client_id && (
-                        <PlaceBidDialog 
-                          jobId={job.id} 
-                          userId={userId} 
-                          onBidPlaced={loadJobs} 
-                        />
-                      )}
-                      {userId === job.client_id && (
-                        <JobBidsDialog jobId={job.id} jobTitle={job.title} />
-                      )}
-                    </div>
+          {/* Jobs Grid */}
+          {loading ? (
+            <div className="text-white text-center py-20">Loading opportunities...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredJobs.map(job => (
+                <div key={job.id} className="glass-card p-6 rounded-2xl group hover:border-primary/50 transition-all duration-300">
+                  <div className="flex justify-between items-start mb-4">
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 uppercase tracking-wider text-[10px]">
+                      {job.status.replace('_', ' ')}
+                    </Badge>
+                    <span className="text-slate-900 dark:text-white font-bold text-lg flex items-center gap-1">
+                      <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      {job.budget.toLocaleString()}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-primary transition-colors">{job.title}</h3>
+                  <p className="text-slate-400 text-sm line-clamp-2 mb-4">{job.description}</p>
+
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {job.required_skills.slice(0, 3).map(skill => (
+                      <Badge key={skill} variant="secondary" className="bg-slate-800 text-slate-300">{skill}</Badge>
+                    ))}
+                    {job.required_skills.length > 3 && <Badge variant="secondary" className="bg-slate-800 text-slate-300">+{job.required_skills.length - 3}</Badge>}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                    <span className="text-xs text-slate-500">Posted {new Date(job.created_at).toLocaleDateString()}</span>
+                    {userRole === "freelancer" && userId !== job.client_id && (
+                      <PlaceBidDialog jobId={job.id} userId={userId} onBidPlaced={loadJobs} />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
