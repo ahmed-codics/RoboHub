@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,43 +10,56 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Plus, X, Upload, Camera, Trash2 } from "lucide-react";
 import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
-  bio: z.string().trim().max(2000, "Bio must be less than 2000 characters").optional()
+  headline: z.string().trim().max(160, "Headline must be less than 160 characters").optional(),
+  location: z.string().trim().max(120, "Location must be less than 120 characters").optional(),
+  bio: z.string().trim().max(2000, "Bio must be less than 2000 characters").optional(),
+  linkedin_url: z.string().trim().max(300, "LinkedIn URL is too long").optional(),
+  website_url: z.string().trim().max(300, "Website URL is too long").optional()
 });
 
 const skillSchema = z.string().trim().min(1, "Skill cannot be empty").max(50, "Skill must be less than 50 characters");
 
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
+
 interface ProfileSectionProps {
   userId: string;
-  profile: any;
+  profile: Database["public"]["Tables"]["profiles"]["Row"] | null;
   onUpdate: () => void;
 }
+
+type FreelancerSkill = Database["public"]["Tables"]["freelancer_skills"]["Row"];
+type PortfolioImage = Database["public"]["Tables"]["portfolio_images"]["Row"];
+type ProfileExperience = Database["public"]["Tables"]["profile_experience"]["Row"];
+type ProfileEducation = Database["public"]["Tables"]["profile_education"]["Row"];
+type ProfileCertification = Database["public"]["Tables"]["profile_certifications"]["Row"];
 
 const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(profile?.name || "");
+  const [headline, setHeadline] = useState(profile?.headline || "");
+  const [location, setLocation] = useState(profile?.location || "");
   const [bio, setBio] = useState(profile?.bio || "");
+  const [linkedinUrl, setLinkedinUrl] = useState(profile?.linkedin_url || "");
+  const [websiteUrl, setWebsiteUrl] = useState(profile?.website_url || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [newSkill, setNewSkill] = useState("");
-  const [skills, setSkills] = useState<any[]>([]);
-  const [portfolioImages, setPortfolioImages] = useState<any[]>([]);
+  const [skills, setSkills] = useState<FreelancerSkill[]>([]);
+  const [portfolioImages, setPortfolioImages] = useState<PortfolioImage[]>([]);
+  const [experience, setExperience] = useState<ProfileExperience[]>([]);
+  const [education, setEducation] = useState<ProfileEducation[]>([]);
+  const [certifications, setCertifications] = useState<ProfileCertification[]>([]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
   const [portfolioTitle, setPortfolioTitle] = useState("");
   const [portfolioDescription, setPortfolioDescription] = useState("");
 
-  useEffect(() => {
-    setName(profile?.name || "");
-    setBio(profile?.bio || "");
-    setAvatarUrl(profile?.avatar_url || "");
-    loadSkills();
-    loadPortfolioImages();
-  }, [userId, profile]);
-
-  const loadSkills = async () => {
+  const loadSkills = useCallback(async () => {
     const { data, error } = await supabase
       .from("freelancer_skills")
       .select("*")
@@ -58,9 +71,9 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
     }
 
     setSkills(data || []);
-  };
+  }, [userId]);
 
-  const loadPortfolioImages = async () => {
+  const loadPortfolioImages = useCallback(async () => {
     const { data, error } = await supabase
       .from("portfolio_images")
       .select("*")
@@ -73,7 +86,44 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
     }
 
     setPortfolioImages(data || []);
-  };
+  }, [userId]);
+
+  const loadStructuredProfile = useCallback(async () => {
+    const [experienceResult, educationResult, certificationResult] = await Promise.all([
+      supabase
+        .from("profile_experience")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("profile_education")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("profile_certifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true }),
+    ]);
+
+    if (!experienceResult.error) setExperience(experienceResult.data || []);
+    if (!educationResult.error) setEducation(educationResult.data || []);
+    if (!certificationResult.error) setCertifications(certificationResult.data || []);
+  }, [userId]);
+
+  useEffect(() => {
+    setName(profile?.name || "");
+    setHeadline(profile?.headline || "");
+    setLocation(profile?.location || "");
+    setBio(profile?.bio || "");
+    setLinkedinUrl(profile?.linkedin_url || "");
+    setWebsiteUrl(profile?.website_url || "");
+    setAvatarUrl(profile?.avatar_url || "");
+    loadSkills();
+    loadPortfolioImages();
+    loadStructuredProfile();
+  }, [userId, profile, loadSkills, loadPortfolioImages, loadStructuredProfile]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -109,8 +159,8 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
       setAvatarUrl(publicUrl);
       toast.success("Profile picture updated!");
       onUpdate();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to upload image");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to upload image"));
     } finally {
       setUploadingAvatar(false);
     }
@@ -157,8 +207,8 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
       setPortfolioTitle("");
       setPortfolioDescription("");
       loadPortfolioImages();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to upload image");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to upload image"));
     } finally {
       setUploadingPortfolio(false);
     }
@@ -180,8 +230,8 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
 
       toast.success("Portfolio image deleted");
       loadPortfolioImages();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete image");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to delete image"));
     }
   };
 
@@ -191,14 +241,22 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
       // Validate input
       const validatedData = profileSchema.parse({
         name,
+        headline: headline || undefined,
+        location: location || undefined,
         bio: bio || undefined,
+        linkedin_url: linkedinUrl || undefined,
+        website_url: websiteUrl || undefined,
       });
 
       const { error } = await supabase
         .from("profiles")
         .update({ 
           name: validatedData.name, 
-          bio: validatedData.bio || null 
+          headline: validatedData.headline || null,
+          location: validatedData.location || null,
+          bio: validatedData.bio || null,
+          linkedin_url: validatedData.linkedin_url || null,
+          website_url: validatedData.website_url || null,
         })
         .eq("id", userId);
 
@@ -207,11 +265,11 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
       toast.success("Profile updated successfully!");
       setEditing(false);
       onUpdate();
-    } catch (error: any) {
+    } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
       } else {
-        toast.error(error.message || "Failed to update profile");
+        toast.error(getErrorMessage(error, "Failed to update profile"));
       }
     } finally {
       setLoading(false);
@@ -234,11 +292,11 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
       toast.success("Skill added!");
       setNewSkill("");
       loadSkills();
-    } catch (error: any) {
+    } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
       } else {
-        toast.error(error.message || "Failed to add skill");
+        toast.error(getErrorMessage(error, "Failed to add skill"));
       }
     }
   };
@@ -254,8 +312,8 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
 
       toast.success("Skill removed");
       loadSkills();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to remove skill");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to remove skill"));
     }
   };
 
@@ -308,6 +366,48 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="headline">Headline</Label>
+              <Input
+                id="headline"
+                value={headline}
+                onChange={(e) => setHeadline(e.target.value)}
+                disabled={!editing}
+                placeholder="e.g., ROS2 Navigation and Embedded Systems Engineer"
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  disabled={!editing}
+                  placeholder="City, Country"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="linkedin-url">LinkedIn URL</Label>
+                <Input
+                  id="linkedin-url"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  disabled={!editing}
+                  placeholder="https://linkedin.com/in/..."
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="website-url">Website URL</Label>
+              <Input
+                id="website-url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                disabled={!editing}
+                placeholder="Portfolio or personal website"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="bio">About Me</Label>
               <Textarea
                 id="bio"
@@ -331,7 +431,11 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
                   onClick={() => {
                     setEditing(false);
                     setName(profile?.name || "");
+                    setHeadline(profile?.headline || "");
+                    setLocation(profile?.location || "");
                     setBio(profile?.bio || "");
+                    setLinkedinUrl(profile?.linkedin_url || "");
+                    setWebsiteUrl(profile?.website_url || "");
                   }}
                 >
                   Cancel
@@ -343,6 +447,81 @@ const ProfileSection = ({ userId, profile, onUpdate }: ProfileSectionProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {(experience.length > 0 || education.length > 0 || certifications.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Background</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {experience.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="font-semibold text-slate-900">Experience</h3>
+                <div className="space-y-3">
+                  {experience.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-slate-200 p-4">
+                      <p className="font-semibold text-slate-900">{item.title}</p>
+                      <p className="text-sm text-slate-600">
+                        {[item.company, item.location].filter(Boolean).join(" • ")}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {[item.start_date, item.is_current ? "Present" : item.end_date].filter(Boolean).join(" - ")}
+                      </p>
+                      {item.description && <p className="mt-2 text-sm text-slate-600">{item.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {education.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="font-semibold text-slate-900">Education</h3>
+                <div className="space-y-3">
+                  {education.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-slate-200 p-4">
+                      <p className="font-semibold text-slate-900">{item.school}</p>
+                      <p className="text-sm text-slate-600">
+                        {[item.degree, item.field].filter(Boolean).join(" • ")}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {[item.start_year, item.end_year].filter(Boolean).join(" - ")}
+                      </p>
+                      {item.description && <p className="mt-2 text-sm text-slate-600">{item.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {certifications.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="font-semibold text-slate-900">Certifications</h3>
+                <div className="space-y-3">
+                  {certifications.map((item) => (
+                    <div key={item.id} className="rounded-lg border border-slate-200 p-4">
+                      <p className="font-semibold text-slate-900">{item.name}</p>
+                      <p className="text-sm text-slate-600">
+                        {[item.issuer, item.issued_at].filter(Boolean).join(" • ")}
+                      </p>
+                      {item.credential_url && (
+                        <a
+                          className="mt-2 block text-sm text-teal-700 hover:underline"
+                          href={item.credential_url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View credential
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Skills Section */}
       <Card>

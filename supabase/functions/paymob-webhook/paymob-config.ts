@@ -1,16 +1,16 @@
 // Paymob Configuration - Duplicated to avoid bundling issues with shared modules when Docker is absent
 export const PAYMOB_CONFIG = {
     // Your Paymob API Key
-    API_KEY: "DUMMY_API_KEY_REPLACE_ME",
+    API_KEY: "ZXlKaGJHY2lPaUpJVXpVeE1pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SmpiR0Z6Y3lJNklrMWxjbU5vWVc1MElpd2ljSEp2Wm1sc1pWOXdheUk2TVRBNE1UWTNNU3dpYm1GdFpTSTZJbWx1YVhScFlXd2lmUS5Uc2ppVVktUDF0UmV6b3k3YVJDVUFFek9nZEFVWTlLOE85MHd4ZUxUUERNVU5UWGI1eU10cm5NelhxT3FlalhkdmlDeHNoN1lMSFJ0VHN6ZjJYeXc1dw==",
 
     // Integration ID for card payments
-    INTEGRATION_ID: "DUMMY_INTEGRATION_ID_REPLACE_ME",
+    INTEGRATION_ID: "5699848",
 
     // iFrame ID for payment UI
-    IFRAME_ID: "DUMMY_IFRAME_ID_REPLACE_ME",
+    IFRAME_ID: "39775",
 
     // HMAC secret for webhook verification
-    HMAC_SECRET: "DUMMY_HMAC_SECRET_REPLACE_ME",
+    HMAC_SECRET: "49A78E8931ECDEBDFF0AF6D3C04E4A24",
 
     // Paymob API endpoints
     BASE_URL: "https://accept.paymob.com/api",

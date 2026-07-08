@@ -13,16 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Briefcase } from "lucide-react";
 import MessageDialog from "@/components/messaging/MessageDialog";
-
-interface Conversation {
-  jobId: string;
-  jobTitle: string;
-  otherUserId: string;
-  otherUserName: string;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount: number;
-}
+import { useConversations, Conversation } from "@/hooks/useConversations";
 
 interface ConversationsDialogProps {
   open: boolean;
@@ -32,8 +23,7 @@ interface ConversationsDialogProps {
 }
 
 const ConversationsDialog = ({ open, onOpenChange, userId, onConversationOpen }: ConversationsDialogProps) => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { conversations, loading, loadConversations } = useConversations(userId);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
 
@@ -41,114 +31,7 @@ const ConversationsDialog = ({ open, onOpenChange, userId, onConversationOpen }:
     if (open && userId) {
       loadConversations();
     }
-  }, [open, userId]);
-
-  const loadConversations = async () => {
-    setLoading(true);
-    console.log('Loading conversations for user:', userId);
-    
-    try {
-      // Get all messages where user is sender or receiver with job and profile data
-      const { data: messagesData, error } = await supabase
-        .from("messages")
-        .select(`
-          id,
-          job_id,
-          sender_id,
-          receiver_id,
-          message,
-          created_at,
-          read,
-          jobs!inner(title)
-        `)
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error loading conversations:", error);
-        setLoading(false);
-        return;
-      }
-
-      console.log('Messages fetched:', messagesData?.length);
-
-      if (!messagesData || messagesData.length === 0) {
-        console.log('No messages found');
-        setConversations([]);
-        setLoading(false);
-        return;
-      }
-
-      // Group messages by job_id and other user
-      const conversationsMap = new Map<string, {
-        messages: any[];
-        otherUserId: string;
-      }>();
-      
-      messagesData.forEach(msg => {
-        const otherUserId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
-        const key = `${msg.job_id}-${otherUserId}`;
-        
-        if (!conversationsMap.has(key)) {
-          conversationsMap.set(key, {
-            messages: [],
-            otherUserId
-          });
-        }
-        conversationsMap.get(key)!.messages.push(msg);
-      });
-
-      console.log('Conversations grouped:', conversationsMap.size);
-
-      // Get all unique user IDs
-      const userIds = Array.from(new Set(
-        Array.from(conversationsMap.values()).map(c => c.otherUserId)
-      ));
-
-      // Fetch all profiles at once
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("id, name")
-        .in("id", userIds);
-
-      const profilesMap = new Map(
-        profilesData?.map(p => [p.id, p.name]) || []
-      );
-
-      // Build conversations array
-      const conversationsArray: Conversation[] = [];
-      
-      for (const [key, { messages, otherUserId }] of conversationsMap) {
-        const lastMessage = messages[0];
-        const unreadCount = messages.filter(
-          m => m.receiver_id === userId && !m.read
-        ).length;
-
-        conversationsArray.push({
-          jobId: lastMessage.job_id,
-          jobTitle: lastMessage.jobs?.title || "Unknown Job",
-          otherUserId,
-          otherUserName: profilesMap.get(otherUserId) || "Unknown User",
-          lastMessage: lastMessage.message,
-          lastMessageTime: lastMessage.created_at,
-          unreadCount,
-        });
-      }
-
-      console.log('Conversations built:', conversationsArray.length);
-      
-      // Sort by last message time
-      conversationsArray.sort((a, b) => 
-        new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
-      );
-
-      setConversations(conversationsArray);
-    } catch (error) {
-      console.error('Error in loadConversations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [open, userId, loadConversations]);
 
   const handleConversationClick = async (conversation: Conversation) => {
     // Mark all messages as read
@@ -164,9 +47,11 @@ const ConversationsDialog = ({ open, onOpenChange, userId, onConversationOpen }:
     onConversationOpen();
   };
 
-  const handleMessageDialogClose = () => {
-    setMessageDialogOpen(false);
-    loadConversations(); // Refresh conversations list
+  const handleMessageDialogClose = (newOpen: boolean) => {
+    setMessageDialogOpen(newOpen);
+    if (!newOpen) {
+      loadConversations(); // Refresh conversations list
+    }
   };
 
   return (
@@ -195,44 +80,44 @@ const ConversationsDialog = ({ open, onOpenChange, userId, onConversationOpen }:
             <ScrollArea className="max-h-[60vh]">
               <div className="space-y-2">
                 {conversations.map((conversation) => (
-                  <div key={conversation.jobId}>
+                  <div key={`${conversation.jobId}-${conversation.otherUserId}`}>
                     <div
                       onClick={() => handleConversationClick(conversation)}
-                      className="flex items-start gap-3 p-4 rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      className="flex items-start gap-3 p-4 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
                     >
                       <Avatar>
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-teal-100 text-teal-800">
                           {conversation.otherUserName.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="font-semibold text-sm truncate">
+                          <p className="font-semibold text-sm truncate text-slate-900">
                             {conversation.otherUserName}
                           </p>
                           {conversation.unreadCount > 0 && (
-                            <Badge variant="default" className="ml-2">
+                            <Badge variant="default" className="ml-2 bg-teal-600 hover:bg-teal-700">
                               {conversation.unreadCount}
                             </Badge>
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                        <div className="flex items-center gap-1 text-xs text-slate-500 mb-1">
                           <Briefcase className="h-3 w-3" />
                           <span className="truncate">{conversation.jobTitle}</span>
                         </div>
                         
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className="text-sm text-slate-600 truncate">
                           {conversation.lastMessage}
                         </p>
                         
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(conversation.lastMessageTime).toLocaleString()}
+                        <p className="text-xs text-slate-400 mt-1">
+                          {new Date(conversation.lastMessageTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                         </p>
                       </div>
                     </div>
-                    <Separator />
+                    <Separator className="bg-slate-100" />
                   </div>
                 ))}
               </div>

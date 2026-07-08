@@ -4,13 +4,13 @@ export const PAYMOB_CONFIG = {
   API_KEY: "DUMMY_API_KEY_REPLACE_ME",
   
   // Integration ID for card payments
-  INTEGRATION_ID: "DUMMY_INTEGRATION_ID_REPLACE_ME",
+  INTEGRATION_ID: "5699848",
   
   // iFrame ID for payment UI
-  IFRAME_ID: "DUMMY_IFRAME_ID_REPLACE_ME",
+  IFRAME_ID: "39775",
   
   // HMAC secret for webhook verification
-  HMAC_SECRET: "DUMMY_HMAC_SECRET_REPLACE_ME",
+  HMAC_SECRET: "49A78E8931ECDEBDFF0AF6D3C04E4A24",
   
   // Paymob API endpoints
   BASE_URL: "https://accept.paymob.com/api",

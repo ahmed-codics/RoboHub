@@ -1,6 +1,5 @@
-import logoImage from "@/assets/logo.png";
 import { Link } from "react-router-dom";
-import { Github, Twitter, Linkedin, Facebook } from "lucide-react";
+import { Bot, Github, Twitter, Linkedin, Facebook } from "lucide-react";
 
 const Footer = () => {
     return (
@@ -9,17 +8,19 @@ const Footer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-12">
                     <div className="lg:col-span-2">
                         <Link to="/" className="flex items-center gap-2 mb-4">
-                            <img src={logoImage} alt="RemoteRobotics" className="h-8 w-8 brightness-0 invert" />
-                            <span className="text-xl font-bold text-white">RemoteRobotics</span>
+                            <span className="grid h-8 w-8 place-items-center rounded bg-teal-600 text-white">
+                                <Bot className="h-5 w-5" />
+                            </span>
+                            <span className="text-xl font-bold text-white tracking-tight">RemoteRobotics</span>
                         </Link>
                         <p className="max-w-xs text-zinc-400 mb-6">
                             The premier marketplace for remote robotics work. Connecting top-tier engineers with innovative companies worldwide.
                         </p>
                         <div className="flex gap-4">
-                            <a href="#" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Twitter className="w-4 h-4" /></a>
-                            <a href="#" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Linkedin className="w-4 h-4" /></a>
-                            <a href="#" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Github className="w-4 h-4" /></a>
-                            <a href="#" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Facebook className="w-4 h-4" /></a>
+                            <a href="https://twitter.com" aria-label="Twitter" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Twitter className="w-4 h-4" /></a>
+                            <a href="https://linkedin.com" aria-label="LinkedIn" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Linkedin className="w-4 h-4" /></a>
+                            <a href="https://github.com" aria-label="GitHub" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Github className="w-4 h-4" /></a>
+                            <a href="https://facebook.com" aria-label="Facebook" className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"><Facebook className="w-4 h-4" /></a>
                         </div>
                     </div>
 
@@ -55,7 +56,7 @@ const Footer = () => {
                 </div>
 
                 <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p>© 2025 RemoteRobotics Inc. All rights reserved.</p>
+                    <p>&copy; 2026 RemoteRobotics Inc. All rights reserved.</p>
                     <div className="flex gap-6">
                         <span>USD</span>
                         <span>English</span>

@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       // Since we don't have a real iframe, we redirect to a test page or return a dummy URL
       // We will assume the frontend handles the redirect to /payment-test based on response
 
-      const dummyPaymentUrl = `#/payment-test?amount=${orderInfo.total_amount}&order_id=${dummyOrderId}&type=${payment_type}`;
+      const dummyPaymentUrl = `/payment-test?amount=${orderInfo.total_amount}&order_id=${dummyOrderId}&type=${payment_type}`;
 
       // Store Payment Intent (Generic or Job specific)
       // For subscription, we might not have a 'job_payment_intents' entry... 

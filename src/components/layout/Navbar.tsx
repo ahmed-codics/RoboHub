@@ -1,61 +1,95 @@
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
-import logoImage from "@/assets/logo.png";
-import { Menu, Search } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Bot, Menu, Search } from "lucide-react";
+import { useState } from "react";
 import {
     Sheet,
     SheetContent,
     SheetTrigger,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
+    const navigate = useNavigate();
+    const [query, setQuery] = useState("");
+    const { user, loading, signOut } = useAuth();
+
+    const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const trimmedQuery = query.trim();
+        if (trimmedQuery) {
+            navigate(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+        }
+    };
+
+    const handleLogout = async () => {
+        await signOut();
+        navigate("/");
+    };
+
     return (
-        <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
                 {/* Logo and Desktop Nav */}
-                <div className="flex items-center gap-6 md:gap-8">
+                <div className="flex min-w-0 items-center gap-5 lg:gap-8">
                     <Link to="/" className="flex items-center gap-2">
-                        <img src={logoImage} alt="RemoteRobotics" className="h-8 w-8" />
-                        <span className="text-xl font-bold text-foreground">RemoteRobotics</span>
+                        <span className="grid h-8 w-8 place-items-center rounded bg-teal-600 text-white">
+                            <Bot className="h-5 w-5" />
+                        </span>
+                        <span className="text-xl font-bold text-slate-900 tracking-tight">RemoteRobotics</span>
                     </Link>
 
-                    <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-                        <Link to="/jobs" className="text-muted-foreground hover:text-foreground transition-colors">
+                    <nav className="hidden md:flex items-center gap-2 text-sm font-medium lg:gap-4">
+                        <Link to="/search" className="whitespace-nowrap text-slate-600 px-3 py-2 rounded-md hover:bg-slate-50 hover:text-teal-600 transition-colors">
                             Find Talent
                         </Link>
-                        <Link to="/jobs" className="text-muted-foreground hover:text-foreground transition-colors">
+                        <Link to="/jobs" className="whitespace-nowrap text-slate-600 px-3 py-2 rounded-md hover:bg-slate-50 hover:text-teal-600 transition-colors">
                             Find Work
                         </Link>
-                        <Link to="/partners" className="text-muted-foreground hover:text-foreground transition-colors">
-                            Why Us
-                        </Link>
-                        <Link to="/partners" className="text-muted-foreground hover:text-foreground transition-colors">
-                            Enterprise
+                        <Link to="/partners" className="whitespace-nowrap text-slate-600 px-3 py-2 rounded-md hover:bg-slate-50 hover:text-teal-600 transition-colors">
+                            Partners
                         </Link>
                     </nav>
                 </div>
 
                 {/* Search Bar (Hidden on mobile) */}
-                <div className="hidden lg:flex max-w-sm w-full relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <form onSubmit={handleSearch} className="hidden lg:flex max-w-xs xl:max-w-sm w-full relative">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <input
                         type="search"
-                        placeholder="Search for talent or jobs..."
-                        className="w-full bg-secondary/50 border border-input rounded-full py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Search..."
+                        className="w-full bg-white border border-slate-200 rounded-md py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all text-slate-900 placeholder:text-slate-400"
                     />
-                </div>
+                </form>
 
                 {/* Auth Buttons */}
                 <div className="flex items-center gap-2 md:gap-4">
-                    <div className="hidden md:flex items-center gap-2">
-                        <Link to="/auth">
-                            <Button variant="ghost" className="text-sm font-medium">
-                                Log In
-                            </Button>
-                        </Link>
-                        <Link to="/auth">
-                            <Button className="rounded-full px-6 font-semibold">Sign Up</Button>
-                        </Link>
+                    <div className="hidden md:flex items-center gap-3">
+                        {!loading && user ? (
+                            <>
+                                <Link to="/dashboard">
+                                    <Button variant="ghost" className="text-sm font-medium text-slate-700 hover:text-teal-600 hover:bg-slate-50">
+                                        Dashboard
+                                    </Button>
+                                </Link>
+                                <Button onClick={handleLogout} variant="outline" className="text-sm font-medium">
+                                    Log Out
+                                </Button>
+                            </>
+                        ) : !loading && !user ? (
+                            <>
+                                <Link to="/auth">
+                                    <Button variant="ghost" className="text-sm font-medium text-slate-700 hover:text-teal-600 hover:bg-slate-50">
+                                        Log In
+                                    </Button>
+                                </Link>
+                                <Link to="/auth">
+                                    <Button className="bg-teal-600 hover:bg-teal-700 text-white border-0 shadow-sm font-medium">Sign Up</Button>
+                                </Link>
+                            </>
+                        ) : null}
                     </div>
 
                     {/* Mobile Menu */}
@@ -67,16 +101,27 @@ const Navbar = () => {
                         </SheetTrigger>
                         <SheetContent>
                             <div className="flex flex-col gap-4 mt-8">
-                                <Link to="/jobs" className="text-lg font-medium">Find Talent</Link>
-                                <Link to="/jobs" className="text-lg font-medium">Find Work</Link>
-                                <Link to="/partners" className="text-lg font-medium">Why Us</Link>
-                                <hr className="border-border" />
-                                <Link to="/auth">
-                                    <Button variant="outline" className="w-full justify-start">Log In</Button>
-                                </Link>
-                                <Link to="/auth">
-                                    <Button className="w-full">Sign Up</Button>
-                                </Link>
+                                <Link to="/search" className="text-lg font-medium text-slate-700 hover:text-teal-600">Find Talent</Link>
+                                <Link to="/jobs" className="text-lg font-medium text-slate-700 hover:text-teal-600">Find Work</Link>
+                                <Link to="/partners" className="text-lg font-medium text-slate-700 hover:text-teal-600">Partners</Link>
+                                <hr className="border-slate-200" />
+                                {!loading && user ? (
+                                    <>
+                                        <Link to="/dashboard">
+                                            <Button variant="outline" className="w-full justify-start text-slate-700">Dashboard</Button>
+                                        </Link>
+                                        <Button variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleLogout}>Log Out</Button>
+                                    </>
+                                ) : !loading && !user ? (
+                                    <>
+                                        <Link to="/auth">
+                                            <Button variant="outline" className="w-full justify-start text-slate-700">Log In</Button>
+                                        </Link>
+                                        <Link to="/auth">
+                                            <Button className="w-full bg-teal-600 hover:bg-teal-700 text-white">Sign Up</Button>
+                                        </Link>
+                                    </>
+                                ) : null}
                             </div>
                         </SheetContent>
                     </Sheet>

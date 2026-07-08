@@ -14,16 +14,16 @@ const categories = [
 
 const ServiceCategories = () => {
     return (
-        <section className="py-20 bg-secondary/30">
+        <section className="py-20 bg-white">
             <div className="container mx-auto px-4">
-                <h2 className="text-3xl font-bold mb-12 text-foreground">Explore by Category</h2>
+                <h2 className="text-3xl font-extrabold mb-12 text-slate-900">Explore by Category</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {categories.map((cat, idx) => (
-                        <Card key={idx} className="hover:shadow-lg transition-shadow cursor-pointer border-none shadow-sm hover:border-primary/20 hover:border">
+                        <Card key={idx} className="bg-white border border-slate-200 shadow-md rounded-[2rem] hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:border-teal-300 cursor-pointer group">
                             <CardContent className="flex flex-col items-start p-6">
-                                <cat.icon className="w-8 h-8 text-primary mb-4" />
-                                <h3 className="font-semibold text-lg mb-1">{cat.title}</h3>
-                                <p className="text-sm text-muted-foreground">{cat.skills}</p>
+                                <cat.icon className="w-8 h-8 text-teal-500 mb-4 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
+                                <h3 className="font-semibold text-lg mb-1 text-slate-800">{cat.title}</h3>
+                                <p className="text-sm text-slate-500">{cat.skills}</p>
                             </CardContent>
                         </Card>
                     ))}

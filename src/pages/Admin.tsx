@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cpu, Users, Briefcase, DollarSign, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DashboardShell from "@/components/layout/DashboardShell";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -26,41 +27,45 @@ const Admin = () => {
     activeJobs: 0,
     premiumUsers: 0,
   });
-  const [users, setUsers] = useState<any[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
+  const [users, setUsers] = useState<Record<string, unknown>[]>([]);
+  const [jobs, setJobs] = useState<Record<string, unknown>[]>([]);
+  const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
 
-  useEffect(() => {
-    checkAdminAccess();
-  }, []);
+  const { user, loading: authLoading, signOut } = useAuth();
 
-  const checkAdminAccess = async () => {
+  const checkAdminAccess = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      navigate("/auth");
+      return;
+    }
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        navigate("/auth");
-        return;
-      }
-
       const { data: roleData, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (error || roleData?.role !== "admin") {
         toast.error("Access denied. Admin privileges required.");
+        setLoading(false);
         navigate("/dashboard");
         return;
       }
 
-      loadDashboardData();
+      await loadDashboardData();
     } catch (error) {
       toast.error("Access denied");
+      setLoading(false);
       navigate("/dashboard");
     }
-  };
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    checkAdminAccess();
+  }, [authLoading, checkAdminAccess]);
 
   const loadDashboardData = async () => {
     try {
@@ -118,114 +123,107 @@ const Admin = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
-    toast.success("Signed out successfully");
-  };
-
-  if (loading) {
+  if (loading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin">
-          <Cpu className="h-12 w-12 text-primary" />
+      <DashboardShell userRole="admin" onRoleChange={checkAdminAccess}>
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin">
+            <Cpu className="h-8 w-8 text-teal-600" />
+          </div>
         </div>
-      </div>
+      </DashboardShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-50 bg-background/80">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Cpu className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">RoboWork Admin</span>
+    <DashboardShell userRole="admin" onRoleChange={checkAdminAccess}>
+      <div className="space-y-8 animate-fade-in-up">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Admin Dashboard</h1>
+            <p className="text-slate-600 mt-1">Platform overview and management.</p>
           </div>
-          <Button onClick={handleSignOut} variant="outline">
-            Sign Out
-          </Button>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <Card>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card className="border border-slate-200 shadow-sm bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-500">Total Users</CardTitle>
+              <Users className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-slate-900">{stats.totalUsers}</div>
+              <p className="text-xs text-slate-500 mt-1">
                 {stats.premiumUsers} premium users
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border border-slate-200 shadow-sm bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-500">Total Jobs</CardTitle>
+              <Briefcase className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalJobs}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-slate-900">{stats.totalJobs}</div>
+              <p className="text-xs text-slate-500 mt-1">
                 {stats.activeJobs} active jobs
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border border-slate-200 shadow-sm bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Bids</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-500">Total Bids</CardTitle>
+              <TrendingUp className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalBids}</div>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalBids}</div>
+              <p className="text-xs text-slate-500 mt-1">Across all jobs</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border border-slate-200 shadow-sm bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-500">Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-teal-600">${stats.totalRevenue.toFixed(2)}</div>
+              <p className="text-xs text-slate-500 mt-1">Total volume processed</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="users" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="jobs">Jobs</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="bg-slate-100 p-1 rounded-md">
+            <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm transition-all font-medium">Users</TabsTrigger>
+            <TabsTrigger value="jobs" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm transition-all font-medium">Jobs</TabsTrigger>
+            <TabsTrigger value="payments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm transition-all font-medium">Payments</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
-            <Card>
+            <Card className="border border-slate-200 shadow-sm bg-white">
               <CardHeader>
-                <CardTitle>Recent Users</CardTitle>
+                <CardTitle className="text-lg font-bold text-slate-900">Recent Users</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Joined</TableHead>
+                    <TableRow className="border-slate-100">
+                      <TableHead className="text-slate-500">Name</TableHead>
+                      <TableHead className="text-slate-500">Role</TableHead>
+                      <TableHead className="text-slate-500">Joined</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.name}</TableCell>
-                        <TableCell className="capitalize">
+                      <TableRow key={user.id} className="border-slate-100">
+                        <TableCell className="font-medium text-slate-900">{user.name}</TableCell>
+                        <TableCell className="capitalize text-slate-600">
                           {user.user_roles?.[0]?.role || "N/A"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-slate-600">
                           {new Date(user.created_at).toLocaleDateString()}
                         </TableCell>
                       </TableRow>
@@ -237,27 +235,27 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="jobs">
-            <Card>
+            <Card className="border border-slate-200 shadow-sm bg-white">
               <CardHeader>
-                <CardTitle>Recent Jobs</CardTitle>
+                <CardTitle className="text-lg font-bold text-slate-900">Recent Jobs</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Budget</TableHead>
-                      <TableHead>Status</TableHead>
+                    <TableRow className="border-slate-100">
+                      <TableHead className="text-slate-500">Title</TableHead>
+                      <TableHead className="text-slate-500">Client</TableHead>
+                      <TableHead className="text-slate-500">Budget</TableHead>
+                      <TableHead className="text-slate-500">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {jobs.map((job) => (
-                      <TableRow key={job.id}>
-                        <TableCell>{job.title}</TableCell>
-                        <TableCell>{job.profiles?.name}</TableCell>
-                        <TableCell>${job.budget}</TableCell>
-                        <TableCell className="capitalize">{job.status}</TableCell>
+                      <TableRow key={job.id} className="border-slate-100">
+                        <TableCell className="font-medium text-slate-900">{job.title}</TableCell>
+                        <TableCell className="text-slate-600">{job.profiles?.name}</TableCell>
+                        <TableCell className="text-slate-600">${job.budget}</TableCell>
+                        <TableCell className="capitalize text-slate-600">{job.status}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -267,31 +265,31 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="payments">
-            <Card>
+            <Card className="border border-slate-200 shadow-sm bg-white">
               <CardHeader>
-                <CardTitle>Recent Payments</CardTitle>
+                <CardTitle className="text-lg font-bold text-slate-900">Recent Payments</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                    <TableRow className="border-slate-100">
+                      <TableHead className="text-slate-500">User</TableHead>
+                      <TableHead className="text-slate-500">Amount</TableHead>
+                      <TableHead className="text-slate-500">Type</TableHead>
+                      <TableHead className="text-slate-500">Status</TableHead>
+                      <TableHead className="text-slate-500">Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {payments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell>{payment.profiles?.name}</TableCell>
-                        <TableCell>${payment.amount}</TableCell>
-                        <TableCell className="capitalize">
+                      <TableRow key={payment.id} className="border-slate-100">
+                        <TableCell className="font-medium text-slate-900">{payment.profiles?.name}</TableCell>
+                        <TableCell className="text-teal-600 font-medium">${payment.amount}</TableCell>
+                        <TableCell className="capitalize text-slate-600">
                           {payment.type.replace("_", " ")}
                         </TableCell>
-                        <TableCell className="capitalize">{payment.status}</TableCell>
-                        <TableCell>
+                        <TableCell className="capitalize text-slate-600">{payment.status}</TableCell>
+                        <TableCell className="text-slate-600">
                           {new Date(payment.created_at).toLocaleDateString()}
                         </TableCell>
                       </TableRow>
@@ -302,8 +300,8 @@ const Admin = () => {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+      </div>
+    </DashboardShell>
   );
 };
 

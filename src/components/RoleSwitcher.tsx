@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, Briefcase } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Users, Briefcase, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface RoleSwitcherProps {
@@ -53,53 +59,37 @@ const RoleSwitcher = ({ userId, currentRole, onRoleChange }: RoleSwitcherProps) 
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Account Type
-        </CardTitle>
-        <CardDescription>
-          Switch between freelancer and client modes
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Button
-          variant={currentRole === "freelancer" ? "default" : "outline"}
-          className="w-full justify-start"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="gap-2" disabled={loading}>
+          {currentRole === "freelancer" ? <Users className="h-4 w-4" /> : <Briefcase className="h-4 w-4" />}
+          <span className="hidden sm:inline-block capitalize">{currentRole} Mode</span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Account Type</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem 
           onClick={() => handleRoleSwitch("freelancer")}
           disabled={loading || currentRole === "freelancer"}
+          className="gap-2 cursor-pointer"
         >
-          <Users className="h-4 w-4 mr-2" />
-          Freelancer Mode
-          {currentRole === "freelancer" && (
-            <Badge variant="secondary" className="ml-auto">Active</Badge>
-          )}
-        </Button>
-
-        <Button
-          variant={currentRole === "client" ? "default" : "outline"}
-          className="w-full justify-start"
+          <Users className="h-4 w-4" />
+          <span>Freelancer Mode</span>
+          {currentRole === "freelancer" && <span className="ml-auto text-xs text-muted-foreground">Active</span>}
+        </DropdownMenuItem>
+        <DropdownMenuItem 
           onClick={() => handleRoleSwitch("client")}
           disabled={loading || currentRole === "client"}
+          className="gap-2 cursor-pointer"
         >
-          <Briefcase className="h-4 w-4 mr-2" />
-          Client Mode
-          {currentRole === "client" && (
-            <Badge variant="secondary" className="ml-auto">Active</Badge>
-          )}
-        </Button>
-
-        <div className="pt-3 border-t border-border">
-          <p className="text-xs text-muted-foreground">
-            {currentRole === "freelancer" 
-              ? "Switch to Client mode to post jobs and hire freelancers"
-              : "Switch to Freelancer mode to bid on jobs and showcase your skills"
-            }
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+          <Briefcase className="h-4 w-4" />
+          <span>Client Mode</span>
+          {currentRole === "client" && <span className="ml-auto text-xs text-muted-foreground">Active</span>}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

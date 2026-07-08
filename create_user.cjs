@@ -1,13 +1,49 @@
-
 const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
 
-const supabaseUrl = "https://hncbyqjxfwbwoblhcokz.supabase.co";
-const supabaseKey = "sb_publishable_UTj_WcR1JomV8Z7X8Y2TaQ_Wxta7EwT";
+// Manually parse .env
+let supabaseUrl = "";
+let supabaseKey = "";
+
+try {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf-8');
+        const lines = envContent.split('\n');
+        for (const line of lines) {
+            const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+            if (match) {
+                const key = match[1];
+                let value = match[2] || '';
+                // Remove quotes
+                if (value.startsWith('"') && value.endsWith('"')) {
+                    value = value.substring(1, value.length - 1);
+                } else if (value.startsWith("'") && value.endsWith("'")) {
+                    value = value.substring(1, value.length - 1);
+                }
+                if (key === 'VITE_SUPABASE_URL') {
+                    supabaseUrl = value;
+                } else if (key === 'VITE_SUPABASE_PUBLISHABLE_KEY') {
+                    supabaseKey = value;
+                }
+            }
+        }
+    }
+} catch (e) {
+    console.error("Error reading .env:", e.message);
+}
+
+if (!supabaseUrl || !supabaseKey) {
+    console.error("Error: VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY not found in .env");
+    process.exit(1);
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function createUser() {
-    const email = "paymob_tester@gmail.com";
+    console.log(`Connecting to: ${supabaseUrl}`);
+    const email = "paymobtester@gmail.com";
     const password = "password123";
 
     // 1. Sign Up
@@ -28,7 +64,6 @@ async function createUser() {
     }
 
     // 2. Create Profile (if not triggered automatically)
-    // We can try to insert profile, if it fails due to duplicates it's fine.
     if (data.user) {
         const { error: profileError } = await supabase.from("profiles").upsert({
             id: data.user.id,

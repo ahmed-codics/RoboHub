@@ -379,30 +379,240 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_certifications: {
+        Row: {
+          created_at: string
+          credential_url: string | null
+          id: string
+          issued_at: string | null
+          issuer: string | null
+          name: string
+          sort_order: number
+          source_import_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credential_url?: string | null
+          id?: string
+          issued_at?: string | null
+          issuer?: string | null
+          name: string
+          sort_order?: number
+          source_import_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credential_url?: string | null
+          id?: string
+          issued_at?: string | null
+          issuer?: string | null
+          name?: string
+          sort_order?: number
+          source_import_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_certifications_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "profile_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_education: {
+        Row: {
+          created_at: string
+          degree: string | null
+          description: string | null
+          end_year: string | null
+          field: string | null
+          id: string
+          school: string
+          sort_order: number
+          source_import_id: string | null
+          start_year: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          degree?: string | null
+          description?: string | null
+          end_year?: string | null
+          field?: string | null
+          id?: string
+          school: string
+          sort_order?: number
+          source_import_id?: string | null
+          start_year?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          degree?: string | null
+          description?: string | null
+          end_year?: string | null
+          field?: string | null
+          id?: string
+          school?: string
+          sort_order?: number
+          source_import_id?: string | null
+          start_year?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_education_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "profile_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_experience: {
+        Row: {
+          company: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_current: boolean
+          location: string | null
+          sort_order: number
+          source_import_id: string | null
+          start_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean
+          location?: string | null
+          sort_order?: number
+          source_import_id?: string | null
+          start_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean
+          location?: string | null
+          sort_order?: number
+          source_import_id?: string | null
+          start_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_experience_source_import_id_fkey"
+            columns: ["source_import_id"]
+            isOneToOne: false
+            referencedRelation: "profile_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_imports: {
+        Row: {
+          created_at: string
+          document_path: string
+          error_message: string | null
+          extracted_json: Json | null
+          id: string
+          original_filename: string | null
+          source_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_path: string
+          error_message?: string | null
+          extracted_json?: Json | null
+          id?: string
+          original_filename?: string | null
+          source_type: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_path?: string
+          error_message?: string | null
+          extracted_json?: Json | null
+          id?: string
+          original_filename?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          headline: string | null
           id: string
+          linkedin_url: string | null
+          location: string | null
           name: string
+          profile_import_completed_at: string | null
           updated_at: string
+          website_url: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          headline?: string | null
           id: string
+          linkedin_url?: string | null
+          location?: string | null
           name: string
+          profile_import_completed_at?: string | null
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          headline?: string | null
           id?: string
+          linkedin_url?: string | null
+          location?: string | null
           name?: string
+          profile_import_completed_at?: string | null
           updated_at?: string
+          website_url?: string | null
         }
         Relationships: []
       }
