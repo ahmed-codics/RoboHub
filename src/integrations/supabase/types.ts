@@ -55,6 +55,243 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          user_id: string
+          email_notifications: boolean
+          marketing_emails: boolean
+          bid_alerts: boolean
+          message_alerts: boolean
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          email_notifications?: boolean
+          marketing_emails?: boolean
+          bid_alerts?: boolean
+          message_alerts?: boolean
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          email_notifications?: boolean
+          marketing_emails?: boolean
+          bid_alerts?: boolean
+          message_alerts?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      service_listings: {
+        Row: {
+          id: string
+          freelancer_id: string
+          title: string
+          description: string
+          category: string | null
+          cover_image: string | null
+          tags: string[]
+          starting_price: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          freelancer_id: string
+          title: string
+          description?: string
+          category?: string | null
+          cover_image?: string | null
+          tags?: string[]
+          starting_price?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          freelancer_id?: string
+          title?: string
+          description?: string
+          category?: string | null
+          cover_image?: string | null
+          tags?: string[]
+          starting_price?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      service_packages: {
+        Row: {
+          id: string
+          listing_id: string
+          tier: string
+          title: string | null
+          description: string | null
+          price: number
+          delivery_days: number
+          revisions: number
+          features: string[]
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          listing_id: string
+          tier?: string
+          title?: string | null
+          description?: string | null
+          price?: number
+          delivery_days?: number
+          revisions?: number
+          features?: string[]
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          listing_id?: string
+          tier?: string
+          title?: string | null
+          description?: string | null
+          price?: number
+          delivery_days?: number
+          revisions?: number
+          features?: string[]
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_packages_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "service_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_items: {
+        Row: {
+          id: string
+          user_id: string
+          item_type: string
+          item_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          item_type: string
+          item_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          item_type?: string
+          item_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      milestones: {
+        Row: {
+          id: string
+          job_id: string
+          title: string
+          description: string | null
+          amount: number
+          due_date: string | null
+          status: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          title: string
+          description?: string | null
+          amount?: number
+          due_date?: string | null
+          status?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          job_id?: string
+          title?: string
+          description?: string | null
+          amount?: number
+          due_date?: string | null
+          status?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      disputes: {
+        Row: {
+          id: string
+          job_id: string
+          raised_by: string
+          against_id: string | null
+          reason: string
+          description: string
+          evidence_url: string | null
+          status: string
+          resolution: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          job_id: string
+          raised_by: string
+          against_id?: string | null
+          reason: string
+          description?: string
+          evidence_url?: string | null
+          status?: string
+          resolution?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          job_id?: string
+          raised_by?: string
+          against_id?: string | null
+          reason?: string
+          description?: string
+          evidence_url?: string | null
+          status?: string
+          resolution?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       escrow_transactions: {
         Row: {
           amount: number

@@ -14,6 +14,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DashboardShell from "@/components/layout/DashboardShell";
 
 const Admin = () => {
@@ -30,6 +33,28 @@ const Admin = () => {
   const [users, setUsers] = useState<Record<string, unknown>[]>([]);
   const [jobs, setJobs] = useState<Record<string, unknown>[]>([]);
   const [payments, setPayments] = useState<Record<string, unknown>[]>([]);
+  const [disputes, setDisputes] = useState<Record<string, unknown>[]>([]);
+
+  const updateJobStatus = async (jobId: string, status: string) => {
+    const { error } = await supabase.from("jobs").update({ status }).eq("id", jobId);
+    if (error) { toast.error("Failed to update job"); return; }
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, status } : j)));
+    toast.success(`Job marked ${status}`);
+  };
+
+  const updateDisputeStatus = async (disputeId: string, status: string) => {
+    let resolution: string | undefined;
+    if (status === "resolved" || status === "rejected") {
+      resolution = window.prompt("Resolution note (shown to the parties):") || undefined;
+    }
+    const { error } = await supabase
+      .from("disputes")
+      .update({ status, ...(resolution !== undefined ? { resolution } : {}), updated_at: new Date().toISOString() })
+      .eq("id", disputeId);
+    if (error) { toast.error("Failed to update dispute"); return; }
+    setDisputes((prev) => prev.map((d) => (d.id === disputeId ? { ...d, status, resolution: resolution ?? d.resolution } : d)));
+    toast.success(`Dispute marked ${status.replace("_", " ")}`);
+  };
 
   const { user, loading: authLoading, signOut } = useAuth();
 
@@ -113,9 +138,16 @@ const Admin = () => {
         .order("created_at", { ascending: false })
         .limit(20);
 
+      const { data: disputesData } = await supabase
+        .from("disputes")
+        .select("*, jobs(title)")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
       setUsers(usersData || []);
       setJobs(jobsData || []);
       setPayments(paymentsData || []);
+      setDisputes(disputesData || []);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     } finally {
@@ -200,6 +232,7 @@ const Admin = () => {
             <TabsTrigger value="users" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm transition-all font-medium">Users</TabsTrigger>
             <TabsTrigger value="jobs" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm transition-all font-medium">Jobs</TabsTrigger>
             <TabsTrigger value="payments" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm transition-all font-medium">Payments</TabsTrigger>
+            <TabsTrigger value="disputes" className="rounded-sm data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm transition-all font-medium">Disputes</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -247,6 +280,7 @@ const Admin = () => {
                       <TableHead className="text-slate-500">Client</TableHead>
                       <TableHead className="text-slate-500">Budget</TableHead>
                       <TableHead className="text-slate-500">Status</TableHead>
+                      <TableHead className="text-slate-500 text-right">Moderate</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -256,6 +290,17 @@ const Admin = () => {
                         <TableCell className="text-slate-600">{job.profiles?.name}</TableCell>
                         <TableCell className="text-slate-600">${job.budget}</TableCell>
                         <TableCell className="capitalize text-slate-600">{job.status}</TableCell>
+                        <TableCell className="text-right">
+                          <Select value={job.status} onValueChange={(v) => updateJobStatus(job.id, v)}>
+                            <SelectTrigger className="h-8 w-[140px] ml-auto border-slate-200 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="open">Open</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled (hide)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -296,6 +341,45 @@ const Admin = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="disputes">
+            <Card className="border border-slate-200 shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-slate-900">Dispute Cases</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {disputes.length === 0 ? (
+                  <p className="text-sm text-slate-500">No disputes filed.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {disputes.map((d) => (
+                      <div key={d.id} className="border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900">{d.jobs?.title || "Job"}</p>
+                            <p className="text-sm text-slate-600 mt-0.5">{d.reason}</p>
+                            <p className="text-sm text-slate-500 mt-2 whitespace-pre-line">{d.description}</p>
+                            {d.evidence_url && (
+                              <a href={d.evidence_url} target="_blank" rel="noopener noreferrer" className="text-xs text-teal-600 hover:underline mt-1 inline-block">View evidence</a>
+                            )}
+                            {d.resolution && (
+                              <p className="mt-2 text-sm text-green-700 bg-green-50 border border-green-100 rounded p-2">Resolution: {d.resolution}</p>
+                            )}
+                          </div>
+                          <Badge className="capitalize border-0 bg-slate-100 text-slate-700 shrink-0">{String(d.status).replace("_", " ")}</Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => updateDisputeStatus(d.id, "under_review")}>Review</Button>
+                          <Button size="sm" className="h-8 bg-green-600 hover:bg-green-700" onClick={() => updateDisputeStatus(d.id, "resolved")}>Resolve</Button>
+                          <Button size="sm" variant="outline" className="h-8 text-red-600 border-red-200 hover:bg-red-50" onClick={() => updateDisputeStatus(d.id, "rejected")}>Reject</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

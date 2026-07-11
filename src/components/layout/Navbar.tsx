@@ -46,8 +46,11 @@ const Navbar = () => {
                         <Link to="/jobs" className="whitespace-nowrap text-slate-600 px-3 py-2 rounded-md hover:bg-slate-50 hover:text-teal-600 transition-colors">
                             Find Work
                         </Link>
-                        <Link to="/partners" className="whitespace-nowrap text-slate-600 px-3 py-2 rounded-md hover:bg-slate-50 hover:text-teal-600 transition-colors">
-                            Partners
+                        <Link to="/services" className="whitespace-nowrap text-slate-600 px-3 py-2 rounded-md hover:bg-slate-50 hover:text-teal-600 transition-colors">
+                            Services
+                        </Link>
+                        <Link to="/help" className="whitespace-nowrap text-slate-600 px-3 py-2 rounded-md hover:bg-slate-50 hover:text-teal-600 transition-colors">
+                            Help
                         </Link>
                     </nav>
                 </div>
@@ -103,6 +106,8 @@ const Navbar = () => {
                             <div className="flex flex-col gap-4 mt-8">
                                 <Link to="/search" className="text-lg font-medium text-slate-700 hover:text-teal-600">Find Talent</Link>
                                 <Link to="/jobs" className="text-lg font-medium text-slate-700 hover:text-teal-600">Find Work</Link>
+                                <Link to="/services" className="text-lg font-medium text-slate-700 hover:text-teal-600">Services</Link>
+                                <Link to="/help" className="text-lg font-medium text-slate-700 hover:text-teal-600">Help</Link>
                                 <Link to="/partners" className="text-lg font-medium text-slate-700 hover:text-teal-600">Partners</Link>
                                 <hr className="border-slate-200" />
                                 {!loading && user ? (

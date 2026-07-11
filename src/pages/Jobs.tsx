@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import SaveButton from "@/components/SaveButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ const Jobs = () => {
   const [budgetFilter, setBudgetFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [showFilters, setShowFilters] = useState(true);
   const [userId, setUserId] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("");
   const { user, loading: authLoading, signOut } = useAuth();
@@ -116,6 +118,15 @@ const Jobs = () => {
     return matchesSearch && matchesSkill && matchesStatus && matchesBudget;
   });
 
+  const skillOptions = useMemo(() => {
+    const set = new Set<string>();
+    jobs.forEach((job) => job.required_skills.forEach((skill) => set.add(skill)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [jobs]);
+
+  const activeFilterCount =
+    (skillFilter !== "all" ? 1 : 0) + (budgetFilter !== "all" ? 1 : 0) + (statusFilter !== "all" ? 1 : 0);
+
   return (
     <DashboardShell userRole={userRole} onRoleChange={checkUser}>
       <div className="space-y-8 animate-fade-in-up">
@@ -125,7 +136,16 @@ const Jobs = () => {
             <p className="text-slate-600 mt-1">Discover and bid on robotic projects.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2 bg-white"><Filter className="w-4 h-4" /> More Filters</Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters((v) => !v)}
+              className="gap-2 bg-white"
+            >
+              <Filter className="w-4 h-4" /> {showFilters ? "Hide Filters" : "More Filters"}
+              {activeFilterCount > 0 && (
+                <Badge className="ml-1 bg-teal-600 text-white border-0 h-5 px-1.5">{activeFilterCount}</Badge>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -146,14 +166,64 @@ const Jobs = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
               <SelectItem value="budget_high">Highest Budget</SelectItem>
+              <SelectItem value="budget_low">Lowest Budget</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
+        {/* Filter Row */}
+        {showFilters && (
+          <div className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Skill</label>
+              <Select value={skillFilter} onValueChange={setSkillFilter}>
+                <SelectTrigger className="h-10 border-slate-200 bg-white rounded-md"><SelectValue placeholder="All skills" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All skills</SelectItem>
+                  {skillOptions.map((skill) => (
+                    <SelectItem key={skill} value={skill}>{skill}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Budget</label>
+              <Select value={budgetFilter} onValueChange={setBudgetFilter}>
+                <SelectTrigger className="h-10 border-slate-200 bg-white rounded-md"><SelectValue placeholder="Any budget" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any budget</SelectItem>
+                  <SelectItem value="0-1000">Up to $1,000</SelectItem>
+                  <SelectItem value="1000-5000">$1,000 – $5,000</SelectItem>
+                  <SelectItem value="5000+">$5,000+</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-10 border-slate-200 bg-white rounded-md"><SelectValue placeholder="All statuses" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
         {/* Jobs Grid */}
         {(loading || authLoading) ? (
           <div className="text-slate-500 text-center py-20 font-medium">Loading opportunities...</div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="bg-white border border-dashed border-slate-300 rounded-lg p-16 text-center">
+            <p className="text-slate-600 font-medium">No jobs match your filters.</p>
+            <p className="text-slate-400 text-sm mt-1">Try adjusting your search or clearing filters.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredJobs.map(job => (
@@ -162,13 +232,18 @@ const Jobs = () => {
                   <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 uppercase tracking-wider text-[10px]">
                     {job.status.replace('_', ' ')}
                   </Badge>
-                  <span className="text-slate-900 font-bold text-lg flex items-center gap-1">
-                    <DollarSign className="w-4 h-4 text-teal-600" />
-                    {job.budget.toLocaleString()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-900 font-bold text-lg flex items-center gap-1">
+                      <DollarSign className="w-4 h-4 text-teal-600" />
+                      {job.budget.toLocaleString()}
+                    </span>
+                    <SaveButton itemType="job" itemId={job.id} className="h-8 w-8" />
+                  </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-slate-900 mb-2 hover:text-teal-600 transition-colors">{job.title}</h3>
+                <Link to={`/job/${job.id}`}>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 hover:text-teal-600 transition-colors">{job.title}</h3>
+                </Link>
                 <p className="text-slate-600 text-sm line-clamp-2 mb-4">{job.description}</p>
 
                 <div className="flex flex-wrap gap-2 mb-6">

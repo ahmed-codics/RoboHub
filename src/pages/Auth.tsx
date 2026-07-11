@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Bot, Mail, Lock, User, ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Bot, Mail, Lock, User, ArrowRight, CheckCircle2, Eye, EyeOff, Github, Linkedin } from "lucide-react";
 
 import AppShell from "@/components/layout/AppShell";
 
@@ -17,6 +18,39 @@ const Auth = () => {
   const [signInData, setSignInData] = useState({ email: "", password: "" });
   const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [showSignUpPassword, setShowSignUpPassword] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleOAuth = async (provider: "google" | "github" | "linkedin_oidc") => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}dashboard` },
+      });
+      if (error) throw error;
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Failed to start sign-in");
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Password reset link sent. Check your email.");
+      setForgotOpen(false);
+      setForgotEmail("");
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Failed to send reset link");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +61,7 @@ const Auth = () => {
         email: signUpData.email,
         password: signUpData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}dashboard`,
         },
       });
 
@@ -114,7 +148,13 @@ const Auth = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="signin-password">Password</Label>
-                    <a href="#" className="text-sm font-medium text-teal-600 hover:text-teal-500">Forgot?</a>
+                    <button
+                      type="button"
+                      onClick={() => { setForgotEmail(signInData.email); setForgotOpen(true); }}
+                      className="text-sm font-medium text-teal-600 hover:text-teal-500"
+                    >
+                      Forgot?
+                    </button>
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
@@ -199,7 +239,7 @@ const Auth = () => {
                   </div>
                 </div>
                 <div className="text-sm text-slate-500 text-center">
-                  By clicking Sign Up, you agree to our <a href="#" className="font-medium text-teal-600 hover:text-teal-500">Terms</a> and <a href="#" className="font-medium text-teal-600 hover:text-teal-500">Privacy Policy</a>.
+                  By clicking Sign Up, you agree to our <a href="/terms" className="font-medium text-teal-600 hover:text-teal-500">Terms</a> and <a href="/privacy" className="font-medium text-teal-600 hover:text-teal-500">Privacy Policy</a>.
                 </div>
                 <Button type="submit" className="w-full h-11 text-base font-medium text-white bg-teal-600 hover:bg-teal-700 shadow-sm border-0 rounded-md" disabled={loading}>
                   {loading ? "Creating Account..." : "Create Account"}
@@ -207,8 +247,59 @@ const Auth = () => {
               </form>
             </TabsContent>
           </Tabs>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200" /></div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-slate-400">Or continue with</span>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <Button type="button" variant="outline" onClick={() => handleOAuth("google")} className="h-11 border-slate-200">
+                <svg className="h-5 w-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"/></svg>
+              </Button>
+              <Button type="button" variant="outline" onClick={() => handleOAuth("github")} className="h-11 border-slate-200">
+                <Github className="h-5 w-5 text-slate-800" />
+              </Button>
+              <Button type="button" variant="outline" onClick={() => handleOAuth("linkedin_oidc")} className="h-11 border-slate-200">
+                <Linkedin className="h-5 w-5 text-[#0A66C2]" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
+
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+            <DialogDescription>
+              Enter your account email and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email Address</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="name@company.com"
+                  className="pl-10 h-11 border-slate-200 focus:border-teal-500 focus:ring-teal-500 rounded-md"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full h-11 text-white bg-teal-600 hover:bg-teal-700 rounded-md" disabled={forgotLoading}>
+              {forgotLoading ? "Sending..." : "Send reset link"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 };

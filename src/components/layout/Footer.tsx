@@ -27,10 +27,10 @@ const Footer = () => {
                     <div>
                         <h3 className="font-semibold text-white mb-4">For Clients</h3>
                         <ul className="space-y-3">
-                            <li><Link to="/jobs" className="hover:text-white transition-colors">Find Talent</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Enterprise Solutions</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Case Studies</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Partnership</Link></li>
+                            <li><Link to="/search" className="hover:text-white transition-colors">Find Talent</Link></li>
+                            <li><Link to="/services" className="hover:text-white transition-colors">Browse Services</Link></li>
+                            <li><Link to="/partners" className="hover:text-white transition-colors">Partners</Link></li>
+                            <li><Link to="/help" className="hover:text-white transition-colors">Help Center</Link></li>
                         </ul>
                     </div>
 
@@ -38,19 +38,19 @@ const Footer = () => {
                         <h3 className="font-semibold text-white mb-4">For Talent</h3>
                         <ul className="space-y-3">
                             <li><Link to="/jobs" className="hover:text-white transition-colors">Find Work</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Community</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Events</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Resources</Link></li>
+                            <li><Link to="/services/new" className="hover:text-white transition-colors">Offer a Service</Link></li>
+                            <li><Link to="/help" className="hover:text-white transition-colors">Resources</Link></li>
+                            <li><Link to="/premium/checkout" className="hover:text-white transition-colors">Go Premium</Link></li>
                         </ul>
                     </div>
 
                     <div>
                         <h3 className="font-semibold text-white mb-4">Company</h3>
                         <ul className="space-y-3">
-                            <li><Link to="#" className="hover:text-white transition-colors">About Us</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Careers</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                            <li><Link to="#" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                            <li><Link to="/help" className="hover:text-white transition-colors">Help Center</Link></li>
+                            <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+                            <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                            <li><Link to="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link></li>
                         </ul>
                     </div>
                 </div>

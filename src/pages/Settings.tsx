@@ -19,6 +19,37 @@ const Settings = () => {
   const { userRole, refreshRole } = useUserRole();
   const [profileName, setProfileName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [prefs, setPrefs] = useState({
+    email_notifications: true,
+    marketing_emails: false,
+    bid_alerts: true,
+    message_alerts: true,
+  });
+
+  const loadPrefs = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("notification_preferences")
+      .select("email_notifications, marketing_emails, bid_alerts, message_alerts")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (data) setPrefs(data);
+  }, [user]);
+
+  const savePref = async (key: keyof typeof prefs, value: boolean) => {
+    if (!user) return;
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    const { error } = await supabase
+      .from("notification_preferences")
+      .upsert({ user_id: user.id, ...next, updated_at: new Date().toISOString() });
+    if (error) {
+      toast.error("Failed to save preference");
+      setPrefs(prefs);
+    } else {
+      toast.success("Preference saved");
+    }
+  };
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
@@ -45,7 +76,8 @@ const Settings = () => {
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
+    loadPrefs();
+  }, [loadProfile, loadPrefs]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -112,16 +144,29 @@ const Settings = () => {
                     <Label>Email Notifications</Label>
                     <p className="text-sm text-muted-foreground">Receive emails about your account activity.</p>
                   </div>
-                  <Switch disabled />
+                  <Switch checked={prefs.email_notifications} onCheckedChange={(v) => savePref("email_notifications", v)} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>New Bid Alerts</Label>
+                    <p className="text-sm text-muted-foreground">Get notified when a freelancer bids on your job.</p>
+                  </div>
+                  <Switch checked={prefs.bid_alerts} onCheckedChange={(v) => savePref("bid_alerts", v)} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Message Alerts</Label>
+                    <p className="text-sm text-muted-foreground">Get notified about new messages.</p>
+                  </div>
+                  <Switch checked={prefs.message_alerts} onCheckedChange={(v) => savePref("message_alerts", v)} />
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Marketing Emails</Label>
                     <p className="text-sm text-muted-foreground">Receive emails about new features and offers.</p>
                   </div>
-                  <Switch disabled />
+                  <Switch checked={prefs.marketing_emails} onCheckedChange={(v) => savePref("marketing_emails", v)} />
                 </div>
-                <p className="text-xs text-amber-600 font-medium">Notification preferences are coming soon.</p>
               </CardContent>
             </Card>
 

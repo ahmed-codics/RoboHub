@@ -17,6 +17,20 @@ import Messages from "./pages/Messages";
 import Payments from "./pages/Payments";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import FreelancerProfile from "./pages/FreelancerProfile";
+import ResetPassword from "./pages/ResetPassword";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Cookies from "./pages/Cookies";
+import JobDetail from "./pages/JobDetail";
+import ProjectWorkspace from "./pages/ProjectWorkspace";
+import Services from "./pages/Services";
+import ServiceDetail from "./pages/ServiceDetail";
+import CreateService from "./pages/CreateService";
+import Analytics from "./pages/Analytics";
+import HelpCenter from "./pages/HelpCenter";
+import Disputes from "./pages/Disputes";
+import Saved from "./pages/Saved";
 import FloatingChatButton from "./components/chat/FloatingChatButton";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -33,12 +47,26 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Auth />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/partners" element={<Partners />} />
       <Route path="/search" element={<Search />} />
+      <Route path="/freelancer/:id" element={<FreelancerProfile />} />
+      <Route path="/job/:id" element={<JobDetail />} />
+      <Route path="/services" element={<Services />} />
+      <Route path="/services/new" element={<ProtectedRoute><CreateService /></ProtectedRoute>} />
+      <Route path="/services/:id" element={<ServiceDetail />} />
+      <Route path="/help" element={<HelpCenter />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/cookies" element={<Cookies />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
       <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
       <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+      <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+      <Route path="/project/:id" element={<ProtectedRoute><ProjectWorkspace /></ProtectedRoute>} />
+      <Route path="/disputes" element={<ProtectedRoute><Disputes /></ProtectedRoute>} />
+      <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
@@ -57,7 +85,7 @@ const App = () => {
           <TooltipProvider delayDuration={0}>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
+            <BrowserRouter basename={import.meta.env.BASE_URL}>
               <AppRoutes />
               <FloatingChatButtonWrapper />
             </BrowserRouter>

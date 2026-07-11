@@ -7,7 +7,11 @@ import {
     Bell,
     CreditCard,
     User,
-    Bot
+    Bot,
+    BarChart3,
+    Package,
+    Heart,
+    ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,8 +27,12 @@ const DashboardSidebar = ({ userRole, activePath = "/dashboard", onNavigate, onS
     const menuItems = [
         { icon: LayoutDashboard, label: "Overview", path: "/dashboard", roles: ["all"] },
         { icon: Briefcase, label: "Jobs", path: "/jobs", roles: ["all"] },
+        { icon: Package, label: "Services", path: "/services", roles: ["all"] },
         { icon: MessageSquare, label: "Messages", path: "/messages", roles: ["all"] },
+        { icon: BarChart3, label: "Analytics", path: "/analytics", roles: ["all"] },
         { icon: CreditCard, label: "Payments", path: "/payments", roles: ["all"] },
+        { icon: Heart, label: "Saved", path: "/saved", roles: ["all"] },
+        { icon: ShieldAlert, label: "Disputes", path: "/disputes", roles: ["all"] },
         { icon: User, label: "Profile", path: "/profile", roles: ["all"] },
         { icon: Settings, label: "Settings", path: "/settings", roles: ["all"] },
     ];

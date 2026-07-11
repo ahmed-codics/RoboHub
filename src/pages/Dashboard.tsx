@@ -59,23 +59,18 @@ const Dashboard = () => {
 
   return (
     <DashboardShell userRole={userRole} onRoleChange={refreshRole}>
-      <div className="space-y-8 animate-fade-in-up">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-            <p className="text-slate-600 mt-1">Welcome back, get ready for your next project.</p>
+      <div className="animate-fade-in-up">
+        {userRole === "freelancer" && <FreelancerDashboard userId={user.id} />}
+        {userRole === "client" && <ClientDashboard userId={user.id} />}
+        {userRole === "admin" && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">Admin workspace</h2>
+            <p className="mt-2 text-slate-500">Manage users, jobs, payments, and disputes from the admin panel.</p>
+            <Button onClick={() => navigate("/admin")} className="mt-6 bg-teal-600 hover:bg-teal-700">
+              Open Admin Panel
+            </Button>
           </div>
-          <div className="text-sm font-medium text-slate-500 bg-white px-4 py-2 rounded-md border border-slate-200 shadow-sm">
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </div>
-        </div>
-
-        {/* Dynamic Dashboard Content */}
-        <div className="bg-white border border-slate-200 shadow-sm rounded-lg p-6">
-          {userRole === "freelancer" && <FreelancerDashboard userId={user.id} />}
-          {userRole === "client" && <ClientDashboard userId={user.id} />}
-          {userRole === "admin" && <div className="p-8 text-center text-slate-500">Admin details coming soon...</div>}
-        </div>
+        )}
       </div>
     </DashboardShell>
   );
